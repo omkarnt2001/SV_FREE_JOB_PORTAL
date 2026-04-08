@@ -61,9 +61,11 @@ def init_db():
     conn.commit()
     conn.close()
 
-    init_db()
-# ---------------- HOME ----------------
 
+# ---------------- HOME ----------------
+@app.route('/')
+def home():
+    init_db()
 
     loc=request.args.get('loc','')
     conn=sqlite3.connect('final.db')
@@ -96,6 +98,7 @@ def init_db():
     </form>
     </div>
     '''
+
     for j in jobs:
         description = j[6] if len(j)>6 else "No Description"
         html += f"""
@@ -109,6 +112,7 @@ def init_db():
         <a href='/apply/{j[0]}'>Apply</a>
         </div>
         """
+
     return html
 
 # ---------------- SIGNUP ----------------
