@@ -5,6 +5,11 @@ from dotenv import load_dotenv
 import sqlite3, os
 from datetime import datetime
 
+app = Flask(__name__)
+app.secret_key = os.environ.get("SECRET_KEY","mysecret123")
+
+init_db()   # 🔥 इथे add कर (IMPORTANT)
+
 # ---------------- ENV ----------------
 load_dotenv()
 app = Flask(__name__)
@@ -322,6 +327,8 @@ def logout():
     session.clear()
     return redirect('/')
 
-if __name__ == "__main__":
-    init_db()
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+# ---------------- LOGOUT ----------------
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
