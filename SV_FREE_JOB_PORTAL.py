@@ -185,6 +185,30 @@ def apply(id):
     </form>
     '''
 
+# ---------------- VIEW JOB ----------------
+@app.route('/view/<int:id>')
+def view_job(id):
+    conn = sqlite3.connect('final.db')
+    job = conn.execute("SELECT * FROM jobs WHERE id=?", (id,)).fetchone()
+    conn.close()
+
+    if not job:
+        return "❌ Job not found"
+
+    return f"""
+    <h2>{job[1]}</h2>
+    <p><b>Company:</b> {job[2]}</p>
+    <p><b>Location:</b> {job[3]}</p>
+    <p><b>Salary:</b> {job[4]}</p>
+    <p><b>HR Name:</b> {job[5]}</p>
+    <p><b>Description:</b> {job[6]}</p>
+
+    <br>
+    <a href='/apply/{job[0]}'>Apply</a>
+    <br><br>
+    <a href='/'>Back</a>
+    """
+
 # ---------------- DOWNLOAD ----------------
 @app.route('/download/<filename>')
 def download(filename):
