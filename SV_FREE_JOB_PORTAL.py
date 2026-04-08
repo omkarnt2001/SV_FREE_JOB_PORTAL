@@ -8,7 +8,7 @@ from datetime import datetime
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY","mysecret123")
 
-init_db()   # 🔥 इथे add कर (IMPORTANT)
+
 
 # ---------------- ENV ----------------
 load_dotenv()
@@ -35,6 +35,8 @@ if not os.path.exists('uploads'):
 def init_db():
     conn = sqlite3.connect('final.db')
     c = conn.cursor()
+
+    init_db()   # 🔥 इथे add कर (IMPORTANT)
 
     # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users (
