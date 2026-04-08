@@ -107,6 +107,7 @@ def home():
         <p>💰 {j[4]}</p>
         <p>📝 {description}</p>
         <p>📞 <a href='tel:{j[5]}'>Call</a> | 💬 <a href='https://wa.me/{j[5]}'>WhatsApp</a></p>
+        <a href='/view/{j[0]}'>👁 View</a> 
         <a href='/apply/{j[0]}'>Apply</a>
         </div>
         """
