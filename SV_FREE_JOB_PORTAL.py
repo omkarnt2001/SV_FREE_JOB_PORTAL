@@ -299,7 +299,4 @@ def logout():
     session.clear()
     return redirect('/')
 
-# ---------------- MAIN ----------------
-if __name__=="__main__":
-    init_db()  # ✅ Create tables if not exists
-    app.run(host="0.0.0.0", port=5011, debug=True)
+app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5011)), debug=False)
