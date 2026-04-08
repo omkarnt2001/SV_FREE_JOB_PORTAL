@@ -53,19 +53,13 @@ def init_db():
         resume TEXT, status TEXT, date TEXT
     )''')
 
-    # Insert default jobs if empty
-    c.execute("SELECT COUNT(*) FROM jobs")
-    if c.fetchone()[0]==0:
-        c.execute("INSERT INTO jobs VALUES (NULL,'Back Office','SV Associates','Thane','15k-20k','Ramesh','Handles back office tasks')")
-        c.execute("INSERT INTO jobs VALUES (NULL,'Telecaller','SV Associates','Diva','12k-18k','Sita','Handles outbound calls')")
+   
 
     conn.commit()
     conn.close()
 
 # ---------------- HOME ----------------
-@app.route('/')
-def home():
-    init_db()   # 🔥 इथे add करायचं आहे (FIRST LINE)
+
 
     loc=request.args.get('loc','')
     conn=sqlite3.connect('final.db')
