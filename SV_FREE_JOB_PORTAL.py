@@ -65,12 +65,16 @@ def init_db():
 # ---------------- HOME ----------------
 @app.route('/')
 def home():
+    init_db()   # 🔥 इथे add करायचं आहे (FIRST LINE)
+
     loc=request.args.get('loc','')
     conn=sqlite3.connect('final.db')
+
     if loc:
         jobs=conn.execute("SELECT * FROM jobs WHERE location LIKE ?",('%'+loc+'%',)).fetchall()
     else:
         jobs=conn.execute("SELECT * FROM jobs").fetchall()
+
     conn.close()
 
     html='''<style>
