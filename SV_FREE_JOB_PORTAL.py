@@ -36,8 +36,6 @@ def init_db():
     conn = sqlite3.connect('final.db')
     c = conn.cursor()
 
-    init_db()   # 🔥 इथे add कर (IMPORTANT)
-
     # Users table
     c.execute('''CREATE TABLE IF NOT EXISTS users (
         id INTEGER PRIMARY KEY, name TEXT, email TEXT, password TEXT
@@ -60,11 +58,10 @@ def init_db():
         resume TEXT, status TEXT, date TEXT
     )''')
 
-   
-
     conn.commit()
     conn.close()
 
+    init_db()
 # ---------------- HOME ----------------
 
 
