@@ -144,10 +144,12 @@ def apply(id):
 @app.route('/admin_login', methods=['GET','POST'])
 def admin_login():
     if request.method == 'POST':
-        if request.form['user'] == "admin" and request.form['pass'] == "1234":
-            session['admin'] = True
-            return redirect('/admin')
-        return "❌ Wrong Admin"
+        user = request.form['user'].strip().lower()
+        password = request.form['pass'].strip()
+
+    if user == "admin" and password == "1234":
+        session['admin'] = True
+    return redirect('/admin')
 
     return '''
     <form method="POST">
