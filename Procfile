@@ -1,1 +1,1 @@
-web: gunicorn app:app
+web: gunicorn SV_FREE_JOB_PORTAL:app
