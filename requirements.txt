@@ -1,6 +1,5 @@
-flask
-gunicorn
+Flask
 psycopg2-binary
-werkzeug
+gunicorn
 flask-mail
-python-dotenv
+werkzeug
