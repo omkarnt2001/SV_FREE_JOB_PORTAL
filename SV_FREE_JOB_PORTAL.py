@@ -164,22 +164,72 @@ def signup():
     if request.method == 'POST':
         conn = get_db()
         cur = conn.cursor()
+
+        # check user already exists
+        cur.execute("SELECT * FROM users WHERE email=%s", (request.form['email'],))
+        existing = cur.fetchone()
+
+        if existing:
+            return "⚠️ User already exists"
+
+        # insert new user
         cur.execute("INSERT INTO users (name,email,password) VALUES (%s,%s,%s)", (
             request.form['name'],
             request.form['email'],
             generate_password_hash(request.form['password'])
         ))
+
         conn.commit()
         conn.close()
+
         return redirect('/login')
 
     return '''
-    <form method="POST">
-    <input name="name"><br>
-    <input name="email"><br>
-    <input name="password"><br>
-    <button>Signup</button>
-    </form>
+    <html>
+    <head>
+    <title>Signup</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
+        url('https://images.unsplash.com/photo-1521791136064-7986c2920216');
+        background-size: cover;
+        color: white;
+    }
+
+    .box {
+        max-width:400px;
+        margin:auto;
+        margin-top:100px;
+        background:white;
+        color:black;
+        padding:20px;
+        border-radius:10px;
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <div class="box">
+        <h3>Signup</h3>
+
+        <form method="POST">
+            <input class="form-control mb-2" name="name" placeholder="Name" required>
+            <input class="form-control mb-2" name="email" placeholder="Email" required>
+            <input class="form-control mb-2" name="password" type="password" placeholder="Password" required>
+
+            <button class="btn btn-success w-100">Signup</button>
+        </form>
+
+        <br>
+        <a href="/login">Already have account? Login</a>
+    </div>
+
+    </body>
+    </html>
     '''
 
 # ---------------- LOGIN ----------------
@@ -188,22 +238,66 @@ def login():
     if request.method == 'POST':
         conn = get_db()
         cur = conn.cursor()
+
         cur.execute("SELECT * FROM users WHERE email=%s", (request.form['email'],))
         user = cur.fetchone()
+
         conn.close()
 
-        if user and check_password_hash(user[3], request.form['password']):
-            session['user'] = user[2]
-            return redirect('/')
+        if user:
+            if check_password_hash(user[3], request.form['password']):
+                session['user'] = user[2]
+                return redirect('/')
+            else:
+                return "❌ Wrong Password"
 
-        return "❌ Invalid Login"
+        return "❌ User Not Found"
 
     return '''
-    <form method="POST">
-    <input name="email"><br>
-    <input name="password"><br>
-    <button>Login</button>
-    </form>
+    <html>
+    <head>
+    <title>Login</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
+        url('https://images.unsplash.com/photo-1521791136064-7986c2920216');
+        background-size: cover;
+        color: white;
+    }
+
+    .box {
+        max-width:400px;
+        margin:auto;
+        margin-top:100px;
+        background:white;
+        color:black;
+        padding:20px;
+        border-radius:10px;
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <div class="box">
+        <h3>Login</h3>
+
+        <form method="POST">
+            <input class="form-control mb-2" name="email" placeholder="Email" required>
+            <input class="form-control mb-2" name="password" type="password" placeholder="Password" required>
+
+            <button class="btn btn-primary w-100">Login</button>
+        </form>
+
+        <br>
+        <a href="/signup">Create new account</a>
+    </div>
+
+    </body>
+    </html>
     '''
 
 # ---------------- APPLY ----------------
