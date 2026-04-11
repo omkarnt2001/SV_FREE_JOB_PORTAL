@@ -255,11 +255,56 @@ def admin():
     jobs = cur.fetchall()
     conn.close()
 
-    html = "<h2>Admin</h2><a href='/admin/post_job'>Post Job</a><br><br>"
+    html = """
+    <html>
+    <head>
+    <title>Admin Panel</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)),
+        url('https://i.imgur.com/8Km9tLL.png'); /* replace with your logo link */
+        background-size: 300px;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-attachment: fixed;
+        color: white;
+    }
+
+    .card {
+        border-radius: 12px;
+        margin-bottom: 10px;
+    }
+
+    .header {
+        text-align:center;
+        padding:20px;
+        font-size:28px;
+        font-weight:bold;
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <div class="header">⚙️ Admin Dashboard</div>
+
+    <div class="container">
+        <a href="/admin/post_job" class="btn btn-success mb-3">+ Post Job</a>
+    """
 
     for j in jobs:
-        html += f"<p>{j[1]} - {j[2]} <a href='/admin/delete/{j[0]}'>Delete</a></p>"
+        html += f"""
+        <div class="card p-3">
+            <h5>{j[1]}</h5>
+            <p>{j[2]}</p>
+            <a href="/admin/delete/{j[0]}" class="btn btn-danger btn-sm">Delete</a>
+        </div>
+        """
 
+    html += "</div></body></html>"
     return html
 
 # ---------------- POST JOB ----------------
@@ -288,18 +333,55 @@ def post_job():
         return redirect('/admin')
 
     return '''
-    <form method="POST">
-    <input name="title"><br>
-    <input name="company"><br>
-    <input name="location"><br>
-    <input name="salary"><br>
-    <input name="hr_name" placeholder="HR Name"><br>
-    <input name="hr_contact" placeholder="HR Contact Number"><br>
-    <textarea name="description"></textarea><br>
-    <button>Post</button>
-    </form>
-    '''
+    <html>
+    <head>
+    <title>Post Job</title>
 
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: linear-gradient(rgba(0,0,0,0.85), rgba(0,0,0,0.85)),
+        url('https://i.imgur.com/8Km9tLL.png');
+        background-size: 300px;
+        background-repeat: no-repeat;
+        background-position: center;
+        color: white;
+    }
+
+    .form-box {
+        max-width:500px;
+        margin:auto;
+        margin-top:50px;
+        background:white;
+        padding:20px;
+        border-radius:10px;
+        color:black;
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <div class="form-box">
+        <h3>Post Job</h3>
+
+        <form method="POST">
+            <input class="form-control mb-2" name="title" placeholder="Job Title">
+            <input class="form-control mb-2" name="company" placeholder="Company">
+            <input class="form-control mb-2" name="location" placeholder="Location">
+            <input class="form-control mb-2" name="salary" placeholder="Salary">
+            <input class="form-control mb-2" name="hr_name" placeholder="HR Name">
+            <input class="form-control mb-2" name="hr_contact" placeholder="HR Contact">
+            <textarea class="form-control mb-2" name="description" placeholder="Description"></textarea>
+
+            <button class="btn btn-primary w-100">Post Job</button>
+        </form>
+    </div>
+
+    </body>
+    </html>
+    '''
 # ---------------- DELETE ----------------
 @app.route('/admin/delete/<int:id>')
 def delete_job(id):
