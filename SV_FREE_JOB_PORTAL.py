@@ -310,6 +310,37 @@ def login():
 
 
 
+# ---------------- APPLY ----------------
+@app.route('/apply/<int:id>')
+def apply(id):
+    if 'user' not in session:
+        return redirect('/login')
+
+    try:
+        conn = get_db()
+        cur = conn.cursor()
+
+        cur.execute("""
+        INSERT INTO applications (user_email, job_id, resume, status, date)
+        VALUES (%s, %s, %s, %s, %s)
+        """, (
+            session['user'],
+            id,
+            '',
+            'Pending',
+            str(datetime.now())
+        ))
+
+        conn.commit()
+        conn.close()
+
+        return "<h3 style='color:green'>✅ Applied Successfully</h3>"
+
+    except Exception as e:
+        return f"<h3 style='color:red'>Error: {e}</h3>"
+
+
+
 
 # ---------------- LOGOUT ----------------
 @app.route('/logout')
