@@ -1,42 +1,29 @@
-from flask import Flask, request, redirect, session, send_from_directory
+from flask import Flask, request, redirect, session
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_mail import Mail, Message
-import sqlite3, os
+import psycopg2, os
 from datetime import datetime
+import urllib.parse
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "mysecret123")
-app.config['UPLOAD_FOLDER'] = 'uploads'
-
-# ---------------- EMAIL ----------------
-app.config['MAIL_SERVER'] = 'smtp.gmail.com'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = os.environ.get("MAIL_USERNAME")
-app.config['MAIL_PASSWORD'] = os.environ.get("MAIL_PASSWORD")
-mail = Mail(app)
-
-# ---------------- ADMIN ----------------
-ADMIN_USER = "admin"
-ADMIN_PASS = "1234"
-
-if not os.path.exists('uploads'):
-    os.makedirs('uploads')
 
 # ---------------- DATABASE ----------------
-def init_db():
-    conn = sqlite3.connect('final.db')
-    c = conn.cursor()
+def get_db():
+    return psycopg2.connect(os.environ.get("DATABASE_URL"), sslmode='require')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS users (
-        id INTEGER PRIMARY KEY,
+def init_db():
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute('''CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
         name TEXT,
         email TEXT,
         password TEXT
     )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS jobs (
-        id INTEGER PRIMARY KEY,
+    cur.execute('''CREATE TABLE IF NOT EXISTS jobs (
+        id SERIAL PRIMARY KEY,
         title TEXT,
         company TEXT,
         location TEXT,
@@ -46,9 +33,9 @@ def init_db():
         description TEXT
     )''')
 
-    c.execute('''CREATE TABLE IF NOT EXISTS applications (
-        id INTEGER PRIMARY KEY,
-        user TEXT,
+    cur.execute('''CREATE TABLE IF NOT EXISTS applications (
+        id SERIAL PRIMARY KEY,
+        user_email TEXT,
         job_id INTEGER,
         resume TEXT,
         status TEXT,
@@ -62,20 +49,26 @@ def init_db():
 @app.route('/')
 def home():
     init_db()
-    conn = sqlite3.connect('final.db')
-    jobs = conn.execute("SELECT * FROM jobs").fetchall()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM jobs")
+    jobs = cur.fetchall()
     conn.close()
 
     html = "<h1>💼 SV Job Portal</h1><a href='/login'>Login</a> | <a href='/admin_login'>Admin</a><br><br>"
 
     for j in jobs:
+        message = f"Hello {j[5]}, I am interested in {j[1]} job"
+        whatsapp_url = f"https://wa.me/{j[6]}?text={urllib.parse.quote(message)}"
+
         html += f"""
         <div>
         <h2>{j[1]}</h2>
         <p>{j[2]} | {j[3]}</p>
         <p>💰 {j[4]}</p>
         <p>👤 {j[5]}</p>
-        <p>📞 <a href='tel:{j[6]}'>Call</a></p>
+        <p>📞 <a href='tel:{j[6]}'>{j[6]}</a></p>
+        <p>💬 <a href='{whatsapp_url}' target='_blank'>WhatsApp</a></p>
         <p>{j[7]}</p>
         <a href='/apply/{j[0]}'>Apply</a>
         </div><hr>
@@ -87,8 +80,9 @@ def home():
 @app.route('/signup', methods=['GET','POST'])
 def signup():
     if request.method == 'POST':
-        conn = sqlite3.connect('final.db')
-        conn.execute("INSERT INTO users VALUES(NULL,?,?,?)", (
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("INSERT INTO users (name,email,password) VALUES (%s,%s,%s)", (
             request.form['name'],
             request.form['email'],
             generate_password_hash(request.form['password'])
@@ -110,8 +104,10 @@ def signup():
 @app.route('/login', methods=['GET','POST'])
 def login():
     if request.method == 'POST':
-        conn = sqlite3.connect('final.db')
-        user = conn.execute("SELECT * FROM users WHERE email=?", (request.form['email'],)).fetchone()
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE email=%s", (request.form['email'],))
+        user = cur.fetchone()
         conn.close()
 
         if user and check_password_hash(user[3], request.form['password']):
@@ -129,43 +125,28 @@ def login():
     '''
 
 # ---------------- APPLY ----------------
-@app.route('/apply/<int:id>', methods=['GET','POST'])
+@app.route('/apply/<int:id>')
 def apply(id):
     if 'user' not in session:
         return redirect('/login')
 
-    if request.method == 'POST':
-        file = request.files['resume']
-        filename = str(datetime.now().timestamp()) + file.filename
-        file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("INSERT INTO applications (user_email,job_id,status,date) VALUES (%s,%s,%s,%s)", (
+        session['user'], id, 'Pending', str(datetime.now())
+    ))
+    conn.commit()
+    conn.close()
 
-        conn = sqlite3.connect('final.db')
-        conn.execute("INSERT INTO applications VALUES(NULL,?,?,?,?,?)", (
-            session['user'], id, filename, 'Pending', str(datetime.now())
-        ))
-        conn.commit()
-        conn.close()
-
-        return "✅ Applied"
-
-    return '''
-    <form method="POST" enctype="multipart/form-data">
-    <input type="file" name="resume"><br>
-    <button>Submit</button>
-    </form>
-    '''
+    return "✅ Applied"
 
 # ---------------- ADMIN LOGIN ----------------
 @app.route('/admin_login', methods=['GET','POST'])
 def admin_login():
     if request.method == 'POST':
-        user = request.form['user'].strip().lower()
-        password = request.form['pass'].strip()
-
-        if user == ADMIN_USER.lower() and password == ADMIN_PASS:
+        if request.form['user'] == "admin" and request.form['pass'] == "1234":
             session['admin'] = True
             return redirect('/admin')
-
         return "❌ Wrong Admin"
 
     return '''
@@ -182,17 +163,16 @@ def admin():
     if 'admin' not in session:
         return redirect('/admin_login')
 
-    conn = sqlite3.connect('final.db')
-    jobs = conn.execute("SELECT * FROM jobs").fetchall()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM jobs")
+    jobs = cur.fetchall()
     conn.close()
 
     html = "<h2>Admin</h2><a href='/admin/post_job'>Post Job</a><br><br>"
 
     for j in jobs:
-        html += f"""
-        <p>{j[1]} - {j[2]}
-        <a href='/admin/delete/{j[0]}'>Delete</a></p>
-        """
+        html += f"<p>{j[1]} - {j[2]} <a href='/admin/delete/{j[0]}'>Delete</a></p>"
 
     return html
 
@@ -203,8 +183,12 @@ def post_job():
         return redirect('/admin_login')
 
     if request.method == 'POST':
-        conn = sqlite3.connect('final.db')
-        conn.execute("INSERT INTO jobs VALUES(NULL,?,?,?,?,?,?,?)", (
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("""
+        INSERT INTO jobs (title,company,location,salary,hr_name,hr_contact,description)
+        VALUES (%s,%s,%s,%s,%s,%s,%s)
+        """, (
             request.form['title'],
             request.form['company'],
             request.form['location'],
@@ -223,8 +207,8 @@ def post_job():
     <input name="company"><br>
     <input name="location"><br>
     <input name="salary"><br>
-    <input name="hr_name"><br>
-    <input name="hr_contact"><br>
+    <input name="hr_name" placeholder="HR Name"><br>
+    <input name="hr_contact" placeholder="HR Contact Number"><br>
     <textarea name="description"></textarea><br>
     <button>Post</button>
     </form>
@@ -233,9 +217,9 @@ def post_job():
 # ---------------- DELETE ----------------
 @app.route('/admin/delete/<int:id>')
 def delete_job(id):
-    conn = sqlite3.connect('final.db')
-    conn.execute("DELETE FROM jobs WHERE id=?", (id,))
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("DELETE FROM jobs WHERE id=%s", (id,))
     conn.commit()
     conn.close()
     return redirect('/admin')
-
