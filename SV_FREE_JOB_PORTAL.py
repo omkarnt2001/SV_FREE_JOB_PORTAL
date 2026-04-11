@@ -10,11 +10,7 @@ app.secret_key = os.environ.get("SECRET_KEY","mysecret123")
 
 
 
-# ---------------- ENV ----------------
-load_dotenv()
-app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY","mysecret123")
-app.config['UPLOAD_FOLDER']='uploads'
+
 
 # ---------------- EMAIL ----------------
 app.config['MAIL_SERVER']='smtp.gmail.com'
