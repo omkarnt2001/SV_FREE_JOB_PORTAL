@@ -21,8 +21,8 @@ app.config['MAIL_PASSWORD']=os.environ.get("MAIL_PASSWORD")
 mail=Mail(app)
 
 # ---------------- ADMIN ----------------
-ADMIN_USER="SV ASSOCIATE"
-ADMIN_PASS="svassociatesbusiness2023@gmail.com"
+ADMIN_USER="ADMIN"
+ADMIN_PASS="1234"
 
 if not os.path.exists('uploads'):
     os.makedirs('uploads')
