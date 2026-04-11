@@ -46,8 +46,8 @@ def init_db():
     conn.close()
 
 # ---------------- HOME ----------------
-@app.route('/')
-def home():
+@app.before_first_request
+def setup():
     init_db()
     conn = get_db()
     cur = conn.cursor()
@@ -144,17 +144,19 @@ def apply(id):
 @app.route('/admin_login', methods=['GET','POST'])
 def admin_login():
     if request.method == 'POST':
-        user = request.form['user'].strip().lower()
-        password = request.form['pass'].strip()
+        user = request.form.get('user', '').strip().lower()
+        password = request.form.get('pass', '').strip()
 
-    if user == "admin" and password == "1234":
-        session['admin'] = True
-    return redirect('/admin')
+        if user == "admin" and password == "1234":
+            session['admin'] = True
+            return redirect('/admin')
+
+        return "❌ Wrong Admin"
 
     return '''
     <form method="POST">
-    <input name="user"><br>
-    <input name="pass"><br>
+    <input name="user" placeholder="Username"><br>
+    <input name="pass" placeholder="Password" type="password"><br>
     <button>Login</button>
     </form>
     '''
