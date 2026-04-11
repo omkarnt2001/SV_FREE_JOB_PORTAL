@@ -127,6 +127,7 @@ def home():
             <div>
                 <a href="/login" class="btn btn-light btn-sm">Login</a>
                 <a href="/admin_login" class="btn btn-warning btn-sm">Admin</a>
+                <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
             </div>
         </div>
     </nav>
@@ -243,19 +244,22 @@ def login():
         conn = get_db()
         cur = conn.cursor()
 
-        cur.execute("SELECT * FROM users WHERE email=%s", (request.form['email'],))
+        email = request.form['email']
+        password = request.form['password']
+
+        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
         user = cur.fetchone()
 
         conn.close()
 
-    if user:
-    if check_password_hash(user[3], request.form['password']):
-        session['user'] = user[2]
-        return redirect('/')
-    else:
-        return "❌ Wrong Password"
-    else:
-        return "❌ User Not Found"
+        if user:
+            if check_password_hash(user[3], password):
+                session['user'] = user[2]
+                return redirect('/')
+            else:
+                return "❌ Wrong Password"
+        else:
+            return "❌ User Not Found"
 
     return '''
     <html>
@@ -304,34 +308,14 @@ def login():
     </html>
     '''
 
-# ---------------- APPLY ----------------
-@app.route('/apply/<int:id>')
-def apply(id):
-    if 'user' not in session:
-        return redirect('/login')
 
-    try:
-        conn = get_db()
-        cur = conn.cursor()
 
-        cur.execute("""
-        INSERT INTO applications (user_email, job_id, resume, status, date)
-        VALUES (%s, %s, %s, %s, %s)
-        """, (
-            session['user'],
-            id,
-            '',
-            'Pending',
-            str(datetime.now())
-        ))
 
-        conn.commit()
-        conn.close()
-
-        return "<h3 style='color:green'>✅ Applied Successfully</h3>"
-
-    except Exception as e:
-        return f"<h3 style='color:red'>Error: {e}</h3>"
+# ---------------- LOGOUT ----------------
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect('/')
 # ---------------- ADMIN LOGIN ----------------
 @app.route('/admin_login', methods=['GET','POST'])
 def admin_login():
