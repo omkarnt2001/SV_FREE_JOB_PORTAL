@@ -1,5 +1,5 @@
-Flask
-Flask-Mail
-python-dotenv
-Werkzeug
+flask
 gunicorn
+werkzeug
+flask-mail
+python-dotenv
