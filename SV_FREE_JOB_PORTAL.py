@@ -248,14 +248,14 @@ def login():
 
         conn.close()
 
-        if user:
+    if user:
     if check_password_hash(user[3], request.form['password']):
         session['user'] = user[2]
         return redirect('/')
     else:
         return "❌ Wrong Password"
-else:
-    return "❌ User Not Found"
+    else:
+        return "❌ User Not Found"
 
     return '''
     <html>
