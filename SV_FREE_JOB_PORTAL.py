@@ -21,7 +21,7 @@ app.config['MAIL_PASSWORD']=os.environ.get("MAIL_PASSWORD")
 mail=Mail(app)
 
 # ---------------- ADMIN ----------------
-ADMIN_USER="ADMIN"
+ADMIN_USER="admin"
 ADMIN_PASS="1234"
 
 if not os.path.exists('uploads'):
@@ -216,7 +216,10 @@ def download(filename):
 @app.route('/admin_login', methods=['GET','POST'])
 def admin_login():
     if request.method=='POST':
-        if request.form['user']==ADMIN_USER and request.form['pass']==ADMIN_PASS:
+        user = request.form['user'].strip().lower()
+        password = request.form['pass'].strip()
+
+        if user == ADMIN_USER.lower() and password == ADMIN_PASS:
             session['admin']=True
             return redirect('/admin')
         return "❌ Wrong Admin"
@@ -326,6 +329,7 @@ def logout():
     session.clear()
     return redirect('/')
 
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
 
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
