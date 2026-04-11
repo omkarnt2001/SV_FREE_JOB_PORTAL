@@ -46,9 +46,8 @@ def init_db():
     conn.close()
 
 # ---------------- HOME ----------------
-@app.before_first_request
-def setup():
-    init_db()
+@app.route('/')
+def home():
     conn = get_db()
     cur = conn.cursor()
     cur.execute("SELECT * FROM jobs")
@@ -59,7 +58,7 @@ def setup():
 
     for j in jobs:
         message = f"Hello {j[5]}, I am interested in {j[1]} job"
-        whatsapp_url = f"https://wa.me/{j[6]}?text={urllib.parse.quote(message)}"
+        whatsapp_url = f"https://wa.me/91{j[6]}?text={urllib.parse.quote(message)}"
 
         html += f"""
         <div>
@@ -227,3 +226,6 @@ def delete_job(id):
     conn.commit()
     conn.close()
     return redirect('/admin')
+
+# 👇 हे add कर
+init_db()
