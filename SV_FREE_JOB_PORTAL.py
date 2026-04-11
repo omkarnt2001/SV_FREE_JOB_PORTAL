@@ -54,27 +54,110 @@ def home():
     jobs = cur.fetchall()
     conn.close()
 
-    html = "<h1>💼 SV Job Portal</h1><a href='/login'>Login</a> | <a href='/admin_login'>Admin</a><br><br>"
+    html = """
+    <html>
+    <head>
+        <title>SV Job Portal</title>
+
+        <!-- Bootstrap -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+        <style>
+            body {
+                background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
+                url('https://images.unsplash.com/photo-1521791136064-7986c2920216');
+                background-size: cover;
+                background-attachment: fixed;
+                color: white;
+            }
+
+            .navbar {
+                background: rgba(0,0,0,0.7);
+            }
+
+            .job-card {
+                background: white;
+                color: black;
+                border-radius: 15px;
+                padding: 15px;
+                margin-bottom: 15px;
+                transition: 0.3s;
+            }
+
+            .job-card:hover {
+                transform: scale(1.02);
+                box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            }
+
+            .btn-call { background: green; color:white; }
+            .btn-wa { background:#25D366; color:white; }
+            .btn-apply { background:#007bff; color:white; }
+
+            .logo {
+                width: 45px;
+                margin-right: 10px;
+            }
+
+            .hero {
+                text-align: center;
+                padding: 60px 20px;
+            }
+
+            .hero h1 {
+                font-size: 40px;
+                font-weight: bold;
+            }
+        </style>
+    </head>
+
+    <body>
+
+    <!-- NAVBAR -->
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center" href="#">
+                <img class="logo" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
+                SV Job Portal
+            </a>
+
+            <div>
+                <a href="/login" class="btn btn-light btn-sm">Login</a>
+                <a href="/admin_login" class="btn btn-warning btn-sm">Admin</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- HERO -->
+    <div class="hero">
+        <h1>Find Your Dream Job 🚀</h1>
+        <p>Apply instantly via Call or WhatsApp</p>
+    </div>
+
+    <div class="container">
+    """
 
     for j in jobs:
         message = f"Hello {j[5]}, I am interested in {j[1]} job"
         whatsapp_url = f"https://wa.me/91{j[6]}?text={urllib.parse.quote(message)}"
 
         html += f"""
-        <div>
-        <h2>{j[1]}</h2>
-        <p>{j[2]} | {j[3]}</p>
-        <p>💰 {j[4]}</p>
-        <p>👤 {j[5]}</p>
-        <p>📞 <a href='tel:{j[6]}'>{j[6]}</a></p>
-        <p>💬 <a href='{whatsapp_url}' target='_blank'>WhatsApp</a></p>
-        <p>{j[7]}</p>
-        <a href='/apply/{j[0]}'>Apply</a>
-        </div><hr>
+        <div class="job-card">
+            <h4>{j[1]}</h4>
+            <p><b>{j[2]}</b> | {j[3]}</p>
+            <p>💰 {j[4]}</p>
+            <p>👤 {j[5]}</p>
+
+            <a class="btn btn-call btn-sm" href="tel:{j[6]}">📞 Call</a>
+            <a class="btn btn-wa btn-sm" href="{whatsapp_url}" target="_blank">💬 WhatsApp</a>
+            <a class="btn btn-apply btn-sm" href="/apply/{j[0]}">Apply</a>
+
+            <hr>
+            <p>{j[7]}</p>
+        </div>
         """
 
+    html += "</div></body></html>"
     return html
-
 # ---------------- SIGNUP ----------------
 @app.route('/signup', methods=['GET','POST'])
 def signup():
