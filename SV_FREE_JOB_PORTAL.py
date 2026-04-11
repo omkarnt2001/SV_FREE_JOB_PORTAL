@@ -9,7 +9,11 @@ app.secret_key = os.environ.get("SECRET_KEY", "mysecret123")
 
 # ---------------- DATABASE ----------------
 def get_db():
-    return psycopg2.connect(os.environ.get("DATABASE_URL"), sslmode='require')
+    try:
+        return psycopg2.connect(os.environ.get("DATABASE_URL"), sslmode='require')
+    except Exception as e:
+        print("DB ERROR:", e)
+        raise e
 
 def init_db():
     conn = get_db()
@@ -245,13 +249,13 @@ def login():
         conn.close()
 
         if user:
-            if check_password_hash(user[3], request.form['password']):
-                session['user'] = user[2]
-                return redirect('/')
-            else:
-                return "❌ Wrong Password"
-
-        return "❌ User Not Found"
+    if check_password_hash(user[3], request.form['password']):
+        session['user'] = user[2]
+        return redirect('/')
+    else:
+        return "❌ Wrong Password"
+else:
+    return "❌ User Not Found"
 
     return '''
     <html>
@@ -306,16 +310,28 @@ def apply(id):
     if 'user' not in session:
         return redirect('/login')
 
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("INSERT INTO applications (user_email,job_id,status,date) VALUES (%s,%s,%s,%s)", (
-        session['user'], id, 'Pending', str(datetime.now())
-    ))
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
 
-    return "✅ Applied"
+        cur.execute("""
+        INSERT INTO applications (user_email, job_id, resume, status, date)
+        VALUES (%s, %s, %s, %s, %s)
+        """, (
+            session['user'],
+            id,
+            '',
+            'Pending',
+            str(datetime.now())
+        ))
 
+        conn.commit()
+        conn.close()
+
+        return "<h3 style='color:green'>✅ Applied Successfully</h3>"
+
+    except Exception as e:
+        return f"<h3 style='color:red'>Error: {e}</h3>"
 # ---------------- ADMIN LOGIN ----------------
 @app.route('/admin_login', methods=['GET','POST'])
 def admin_login():
