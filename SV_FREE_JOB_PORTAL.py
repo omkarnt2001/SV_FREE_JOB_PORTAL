@@ -347,28 +347,25 @@ def login():
 # ---------------- APPLY ----------------
 @app.route('/apply/<int:id>', methods=['GET', 'POST'])
 def apply(id):
+
     if 'user' not in session:
         return redirect('/login')
 
-    conn = get_db()
-    cur = conn.cursor()
+    if request.method == 'POST':
+        try:
+            conn = get_db()
+            cur = conn.cursor()
 
-    try:
+            file = request.files.get('resume')
 
-# ---------------- POST ----------------
-        if request.method == 'POST':
-
-            file = request.files['resume']
-
-            # ❌ file check
-            if file.filename == '':
+            if not file or file.filename == '':
                 return """
                 <html>
                 <head>
                     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
                 </head>
                 <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
-                    <div class="text-center">
+                    <div class="card p-4 text-center">
                         <h3 style="color:red;">❌ Please upload resume</h3>
                         <a href="/apply/""" + str(id) + """" class="btn btn-light mt-3">Try Again</a>
                     </div>
@@ -376,64 +373,90 @@ def apply(id):
                 </html>
                 """
 
-            # 📁 upload folder safe
             os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
             filename = secure_filename(file.filename)
-            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            unique_filename = str(datetime.now().timestamp()) + "_" + filename
+
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
             file.save(filepath)
 
-            # 💾 SAVE APPLICATION (NO DUPLICATE CHECK)
             cur.execute("""
                 INSERT INTO applications (user_email, job_id, resume, status, date)
                 VALUES (%s, %s, %s, %s, %s)
             """, (
                 session['user'],
                 id,
-                filename,
+                unique_filename,
                 'Pending',
                 str(datetime.now())
             ))
 
             conn.commit()
+            conn.close()
 
-            # 📧 EMAIL SEND
             send_email(
                 session['user'],
                 "Application Received - SV Job Portal",
-                "Hi! Your application has been submitted successfully."
+                "Hi 👋 Your application has been successfully submitted. We will contact you soon."
             )
-
-            conn.close()
 
             return """
             <html>
             <head>
+                <title>Success</title>
                 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                <style>
+                    body {
+                        background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+                        height: 100vh;
+                        display: flex;
+                        justify-content: center;
+                        align-items: center;
+                        color: white;
+                    }
+
+                    .box {
+                        background: rgba(255,255,255,0.1);
+                        padding: 40px;
+                        border-radius: 20px;
+                        text-align: center;
+                        backdrop-filter: blur(10px);
+                        box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                    }
+
+                    .btn-custom {
+                        margin: 5px;
+                        border-radius: 25px;
+                        padding: 10px 20px;
+                    }
+                </style>
             </head>
 
-            <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
-                <div class="text-center">
-                    <h2 style="color:lightgreen;">✅ Applied Successfully</h2>
-                    <a href="/" class="btn btn-light mt-3">Home</a>
-                    <a href="/dashboard" class="btn btn-warning mt-3">Dashboard</a>
+            <body>
+
+                <div class="box">
+                    <h1 style="color:lightgreen;">✅ Application Submitted</h1>
+                    <p>We have received your resume successfully.</p>
+
+                    <a href="/" class="btn btn-light btn-custom">🏠 Home</a>
+                    <a href="/dashboard" class="btn btn-warning btn-custom">📊 Dashboard</a>
                 </div>
+
             </body>
             </html>
             """
 
-        conn.close()
+        except Exception as e:
+            return f"""
+            <html>
+            <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
+                <h3 style="color:red;">Error: {e}</h3>
+            </body>
+            </html>
+            """
 
-    except Exception as e:
-        return f"""
-        <html>
-        <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
-            <h3 style="color:red;">Error: {e}</h3>
-        </body>
-        </html>
-        """
-
-    # ---------------- GET UI ----------------
+    # ---------------- GET PAGE (PROFESSIONAL UI) ----------------
     return """
     <html>
     <head>
@@ -442,35 +465,60 @@ def apply(id):
 
         <style>
             body {
-                background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
-                url('https://images.unsplash.com/photo-1521791136064-7986c2920216');
-                background-size: cover;
-                background-position: center;
+                background: linear-gradient(135deg, #141e30, #243b55);
+                height: 100vh;
+                display: flex;
+                justify-content: center;
+                align-items: center;
                 color: white;
             }
 
-            .card {
-                border-radius: 15px;
-                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            .apply-card {
+                width: 420px;
+                background: rgba(255,255,255,0.08);
+                backdrop-filter: blur(12px);
+                border-radius: 20px;
+                padding: 30px;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            }
+
+            .apply-card h3 {
+                text-align: center;
+                margin-bottom: 10px;
+            }
+
+            .apply-card p {
+                text-align: center;
+                color: #ccc;
+                font-size: 14px;
+            }
+
+            .btn-custom {
+                border-radius: 30px;
+                padding: 10px;
+            }
+
+            input {
+                border-radius: 10px !important;
             }
         </style>
     </head>
 
-    <body class="d-flex justify-content-center align-items-center" style="height:100vh;">
+    <body>
 
-        <div class="card p-4" style="width:420px;">
-            <h3 class="text-center">📄 Upload Resume</h3>
-            <p class="text-muted text-center">Fill and apply instantly 🚀</p>
+        <div class="apply-card">
+            <h3>📄 Apply for Job</h3>
+            <p>Upload your resume and apply instantly</p>
 
             <form method="POST" enctype="multipart/form-data">
                 <input type="file" name="resume" class="form-control mb-3" required>
 
-                <button class="btn btn-success w-100">
-                    🚀 Apply Now
+                <button class="btn btn-success w-100 btn-custom">
+                    🚀 Submit Application
                 </button>
             </form>
 
-            <a href="/" class="btn btn-secondary w-100 mt-2">⬅ Back</a>
+            <a href="/" class="btn btn-light w-100 mt-3 btn-custom">⬅ Back to Jobs</a>
         </div>
 
     </body>
