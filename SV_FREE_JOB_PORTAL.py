@@ -86,11 +86,13 @@ def home():
                 padding: 15px;
                 margin-bottom: 15px;
                 transition: 0.3s;
+                border-left: 5px solid #007bff;
             }
 
             .job-card:hover {
                 transform: scale(1.02);
                 box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+                 transform: scale(1.05);
             }
 
             .btn-call { background: green; color:white; }
@@ -142,23 +144,26 @@ def home():
     """
 
     for j in jobs:
-        message = f"Hello {j[5]}, I am interested in {j[1]} job"
-        whatsapp_url = f"https://wa.me/91{j[6]}?text={urllib.parse.quote(message)}"
+            message = f"Hello {j[5]}, I am interested in {j[1]} job"
+            whatsapp_url = f"https://wa.me/91{j[6]}?text={urllib.parse.quote(message)}"
 
-        html += f"""
-        <div class="job-card">
+           html += f"""
+            <div class="job-card shadow">
             <h4>{j[1]}</h4>
-            <p><b>{j[2]}</b> | {j[3]}</p>
+            <p><b>{j[2]}</b> | 📍 {j[3]}</p>
             <p>💰 {j[4]}</p>
             <p>👤 {j[5]}</p>
 
+            <div class="mb-2">
             <a class="btn btn-call btn-sm" href="tel:{j[6]}">📞 Call</a>
             <a class="btn btn-wa btn-sm" href="{whatsapp_url}" target="_blank">💬 WhatsApp</a>
-            <a class="btn btn-apply btn-sm" href="/apply/{j[0]}">Apply</a>
+            <a class="btn btn-primary btn-sm" href="/view/{j[0]}">👁 View</a>
+            <a class="btn btn-success btn-sm" href="/apply/{j[0]}">Apply</a>
+            </div>
 
             <hr>
             <p>{j[7]}</p>
-        </div>
+         </div>
         """
 
     html += "</div></body></html>"
@@ -367,6 +372,51 @@ def admin_login():
     <button>Login</button>
     </form>
     '''
+
+
+# ---------------- VIEW JOB ----------------
+@app.route('/view/<int:id>')
+def view_job(id):
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("SELECT * FROM jobs WHERE id=%s", (id,))
+    job = cur.fetchone()
+
+    conn.close()
+
+    if not job:
+        return "Job Not Found"
+
+    return f"""
+    <html>
+    <head>
+    <title>{job[1]}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+
+    <body class="bg-dark text-white">
+
+    <div class="container mt-5">
+        <div class="card p-4 text-dark">
+            <h2>{job[1]}</h2>
+            <p><b>Company:</b> {job[2]}</p>
+            <p><b>Location:</b> {job[3]}</p>
+            <p><b>Salary:</b> {job[4]}</p>
+            <p><b>HR:</b> {job[5]}</p>
+            <p><b>Contact:</b> {job[6]}</p>
+
+            <hr>
+            <p>{job[7]}</p>
+
+            <a href="/" class="btn btn-secondary">⬅ Back</a>
+            <a href="/apply/{job[0]}" class="btn btn-success">Apply Now</a>
+        </div>
+    </div>
+
+    </body>
+    </html>
+    """
 
 # ---------------- ADMIN ----------------
 @app.route('/admin')
