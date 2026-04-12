@@ -350,33 +350,40 @@ def apply(id):
     if 'user' not in session:
         return redirect('/login')
 
-    if request.method == 'POST':
+    conn = get_db()
+    cur = conn.cursor()
 
-        conn = get_db()
-        cur = conn.cursor()
+    try:
 
-        try:
-            # 🔴 duplicate check
-            cur.execute("""
-                SELECT * FROM applications
-                WHERE user_email=%s AND job_id=%s
-            """, (session['user'], id))
+# ---------------- POST ----------------
+        if request.method == 'POST':
 
-            if cur.fetchone():
-                conn.close()
-                return "<h3 style='color:orange;text-align:center;'>⚠️ Already Applied</h3>"
-
-            # 📄 file upload
             file = request.files['resume']
 
+            # ❌ file check
             if file.filename == '':
-                return "<h3 style='color:red;text-align:center;'>❌ No file selected</h3>"
+                return """
+                <html>
+                <head>
+                    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+                </head>
+                <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
+                    <div class="text-center">
+                        <h3 style="color:red;">❌ Please upload resume</h3>
+                        <a href="/apply/""" + str(id) + """" class="btn btn-light mt-3">Try Again</a>
+                    </div>
+                </body>
+                </html>
+                """
+
+            # 📁 upload folder safe
+            os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
             filename = secure_filename(file.filename)
             filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
             file.save(filepath)
 
-            # 💾 insert DB
+            # 💾 SAVE APPLICATION (NO DUPLICATE CHECK)
             cur.execute("""
                 INSERT INTO applications (user_email, job_id, resume, status, date)
                 VALUES (%s, %s, %s, %s, %s)
@@ -390,11 +397,11 @@ def apply(id):
 
             conn.commit()
 
-            # 📧 EMAIL (optional but important)
+            # 📧 EMAIL SEND
             send_email(
                 session['user'],
                 "Application Received - SV Job Portal",
-                "Hi! Your job application has been successfully submitted. We will contact you soon."
+                "Hi! Your application has been submitted successfully."
             )
 
             conn.close()
@@ -408,17 +415,25 @@ def apply(id):
             <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
                 <div class="text-center">
                     <h2 style="color:lightgreen;">✅ Applied Successfully</h2>
-                    <a href="/" class="btn btn-light mt-3">Go Home</a>
+                    <a href="/" class="btn btn-light mt-3">Home</a>
                     <a href="/dashboard" class="btn btn-warning mt-3">Dashboard</a>
                 </div>
             </body>
             </html>
             """
 
-        except Exception as e:
-            return f"<h3 style='color:red;text-align:center;'>Error: {e}</h3>"
+        conn.close()
 
-    # ---------------- GET PAGE (UI) ----------------
+    except Exception as e:
+        return f"""
+        <html>
+        <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
+            <h3 style="color:red;">Error: {e}</h3>
+        </body>
+        </html>
+        """
+
+    # ---------------- GET UI ----------------
     return """
     <html>
     <head>
@@ -443,8 +458,9 @@ def apply(id):
 
     <body class="d-flex justify-content-center align-items-center" style="height:100vh;">
 
-        <div class="card p-4" style="width:400px;">
+        <div class="card p-4" style="width:420px;">
             <h3 class="text-center">📄 Upload Resume</h3>
+            <p class="text-muted text-center">Fill and apply instantly 🚀</p>
 
             <form method="POST" enctype="multipart/form-data">
                 <input type="file" name="resume" class="form-control mb-3" required>
