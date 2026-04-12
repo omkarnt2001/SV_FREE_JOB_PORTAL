@@ -49,125 +49,28 @@ def init_db():
     conn.commit()
     conn.close()
 
-# ---------------- HOME ----------------
-@app.route('/')
-def home():
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM jobs")
-    jobs = cur.fetchall()
-    conn.close()
+for j in jobs:
+    message = f"Hello {j[5]}, I am interested in {j[1]} job"
+    whatsapp_url = f"https://wa.me/91{j[6]}?text={urllib.parse.quote(message)}"
 
-    html = """
-    <html>
-    <head>
-        <title>SV Job Portal</title>
+    html += f"""
+    <div class="job-card shadow">
+        <h4>{j[1]}</h4>
+        <p><b>{j[2]}</b> | 📍 {j[3]}</p>
+        <p>💰 {j[4]}</p>
+        <p>👤 {j[5]}</p>
 
-        <!-- Bootstrap -->
-        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-        <style>
-            body {
-                background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)),
-                url('https://images.unsplash.com/photo-1521791136064-7986c2920216');
-                background-size: cover;
-                background-attachment: fixed;
-                color: white;
-            }
-
-            .navbar {
-                background: rgba(0,0,0,0.7);
-            }
-
-            .job-card {
-                background: white;
-                color: black;
-                border-radius: 15px;
-                padding: 15px;
-                margin-bottom: 15px;
-                transition: 0.3s;
-                border-left: 5px solid #007bff;
-            }
-
-            .job-card:hover {
-                transform: scale(1.02);
-                box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-                 transform: scale(1.05);
-            }
-
-            .btn-call { background: green; color:white; }
-            .btn-wa { background:#25D366; color:white; }
-            .btn-apply { background:#007bff; color:white; }
-
-            .logo {
-                width: 45px;
-                margin-right: 10px;
-            }
-
-            .hero {
-                text-align: center;
-                padding: 60px 20px;
-            }
-
-            .hero h1 {
-                font-size: 40px;
-                font-weight: bold;
-            }
-        </style>
-    </head>
-
-    <body>
-
-    <!-- NAVBAR -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container">
-            <a class="navbar-brand d-flex align-items-center" href="#">
-                <img class="logo" src="https://cdn-icons-png.flaticon.com/512/3135/3135715.png">
-                SV Job Portal
-            </a>
-
-            <div>
-                <a href="/login" class="btn btn-light btn-sm">Login</a>
-                <a href="/admin_login" class="btn btn-warning btn-sm">Admin</a>
-                <a href="/logout" class="btn btn-danger btn-sm">Logout</a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- HERO -->
-    <div class="hero">
-        <h1>Find Your Dream Job 🚀</h1>
-        <p>Apply instantly via Call or WhatsApp</p>
-    </div>
-
-    <div class="container">
-    """
-
-    for j in jobs:
-            message = f"Hello {j[5]}, I am interested in {j[1]} job"
-            whatsapp_url = f"https://wa.me/91{j[6]}?text={urllib.parse.quote(message)}"
-
-           html += f"""
-            <div class="job-card shadow">
-            <h4>{j[1]}</h4>
-            <p><b>{j[2]}</b> | 📍 {j[3]}</p>
-            <p>💰 {j[4]}</p>
-            <p>👤 {j[5]}</p>
-
-            <div class="mb-2">
+        <div class="mb-2">
             <a class="btn btn-call btn-sm" href="tel:{j[6]}">📞 Call</a>
             <a class="btn btn-wa btn-sm" href="{whatsapp_url}" target="_blank">💬 WhatsApp</a>
             <a class="btn btn-primary btn-sm" href="/view/{j[0]}">👁 View</a>
             <a class="btn btn-success btn-sm" href="/apply/{j[0]}">Apply</a>
-            </div>
+        </div>
 
-            <hr>
-            <p>{j[7]}</p>
-         </div>
-        """
-
-    html += "</div></body></html>"
-    return html
+        <hr>
+        <p>{j[7]}</p>
+    </div>
+    """
 # ---------------- SIGNUP ----------------
 @app.route('/signup', methods=['GET','POST'])
 def signup():
