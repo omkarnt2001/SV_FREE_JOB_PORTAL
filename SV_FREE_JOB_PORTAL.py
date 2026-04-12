@@ -1,11 +1,39 @@
 from flask import Flask, request, redirect, session
+from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 import psycopg2, os
 from datetime import datetime
 import urllib.parse
+import smtplib
+from email.mime.text import MIMEText
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "mysecret123")
+
+UPLOAD_FOLDER = "uploads"
+app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+
+
+# ---------------- EMAIL FUNCTION ----------------
+def send_email(to_email, subject, message):
+    try:
+        sender = "yourgmail@gmail.com"
+        password = "your_app_password"
+
+        msg = MIMEText(message)
+        msg["Subject"] = subject
+        msg["From"] = sender
+        msg["To"] = to_email
+
+        server = smtplib.SMTP("smtp.gmail.com", 587)
+        server.starttls()
+        server.login(sender, password)
+        server.send_message(msg)
+        server.quit()
+
+    except Exception as e:
+        print("Email error:", e)
 
 # ---------------- DATABASE ----------------
 def get_db():
@@ -317,33 +345,145 @@ def login():
 
 
 # ---------------- APPLY ----------------
-@app.route('/apply/<int:id>')
+@app.route('/apply/<int:id>', methods=['GET', 'POST'])
 def apply(id):
     if 'user' not in session:
         return redirect('/login')
 
-    try:
+    if request.method == 'POST':
+
         conn = get_db()
         cur = conn.cursor()
 
-        cur.execute("""
-        INSERT INTO applications (user_email, job_id, resume, status, date)
-        VALUES (%s, %s, %s, %s, %s)
-        """, (
-            session['user'],
-            id,
-            '',
-            'Pending',
-            str(datetime.now())
-        ))
+        try:
+            # 🔴 duplicate check
+            cur.execute("""
+                SELECT * FROM applications
+                WHERE user_email=%s AND job_id=%s
+            """, (session['user'], id))
 
-        conn.commit()
-        conn.close()
+            if cur.fetchone():
+                conn.close()
+                return "<h3 style='color:orange;text-align:center;'>⚠️ Already Applied</h3>"
 
-        return "<h3 style='color:green'>✅ Applied Successfully</h3>"
+            # 📄 file upload
+            file = request.files['resume']
 
-    except Exception as e:
-        return f"<h3 style='color:red'>Error: {e}</h3>"
+            if file.filename == '':
+                return "<h3 style='color:red;text-align:center;'>❌ No file selected</h3>"
+
+            filename = secure_filename(file.filename)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
+
+            # 💾 insert DB
+            cur.execute("""
+                INSERT INTO applications (user_email, job_id, resume, status, date)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (
+                session['user'],
+                id,
+                filename,
+                'Pending',
+                str(datetime.now())
+            ))
+
+            conn.commit()
+
+            # 📧 EMAIL (optional but important)
+            send_email(
+                session['user'],
+                "Application Received - SV Job Portal",
+                "Hi! Your job application has been successfully submitted. We will contact you soon."
+            )
+
+            conn.close()
+
+            return """
+            <html>
+            <head>
+                <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            </head>
+
+            <body class="bg-dark text-white d-flex justify-content-center align-items-center" style="height:100vh;">
+                <div class="text-center">
+                    <h2 style="color:lightgreen;">✅ Applied Successfully</h2>
+                    <a href="/" class="btn btn-light mt-3">Go Home</a>
+                    <a href="/dashboard" class="btn btn-warning mt-3">Dashboard</a>
+                </div>
+            </body>
+            </html>
+            """
+
+        except Exception as e:
+            return f"<h3 style='color:red;text-align:center;'>Error: {e}</h3>"
+
+    # ---------------- GET PAGE (UI) ----------------
+    return """
+    <html>
+    <head>
+        <title>Apply Job</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+        <style>
+            body {
+                background: linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)),
+                url('https://images.unsplash.com/photo-1521791136064-7986c2920216');
+                background-size: cover;
+                background-position: center;
+                color: white;
+            }
+
+            .card {
+                border-radius: 15px;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            }
+        </style>
+    </head>
+
+    <body class="d-flex justify-content-center align-items-center" style="height:100vh;">
+
+        <div class="card p-4" style="width:400px;">
+            <h3 class="text-center">📄 Upload Resume</h3>
+
+            <form method="POST" enctype="multipart/form-data">
+                <input type="file" name="resume" class="form-control mb-3" required>
+
+                <button class="btn btn-success w-100">
+                    🚀 Apply Now
+                </button>
+            </form>
+
+            <a href="/" class="btn btn-secondary w-100 mt-2">⬅ Back</a>
+        </div>
+
+    </body>
+    </html>
+    """
+# ---------------- USER DASHBOARD ----------------
+@app.route('/dashboard')
+def dashboard():
+    if 'user' not in session:
+        return redirect('/login')
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT jobs.title, applications.status, applications.date
+        FROM applications
+        JOIN jobs ON jobs.id = applications.job_id
+        WHERE applications.user_email=%s
+    """, (session['user'],))
+
+    data = cur.fetchall()
+    conn.close()
+
+    html = "<h2>User Dashboard</h2>"
+    for d in data:
+        html += f"<p>{d[0]} | {d[1]} | {d[2]}</p>"
+
+    return html
 
 
 
