@@ -34,7 +34,7 @@ def send_email(to_email, subject, message):
         msg["From"] = sender
         msg["To"] = to_email
 
-        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+        server = smtplib.SMTP("smtp.gmail.com", 587)
         server.starttls()
         server.login(sender, password)
         server.send_message(msg)
@@ -411,42 +411,52 @@ def login():
 # ---------------- OTP LOGIN ----------------
 @app.route('/otp_login', methods=['GET','POST'])
 def otp_login():
+
     if request.method == 'POST':
-        email = request.form['email']
-
-        conn = get_db()
-        cur = conn.cursor()
-
-        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
-        user = cur.fetchone()
-
-        if not user:
-            return "❌ Email not registered"
+        mobile = request.form['mobile']
 
         otp = generate_otp()
         otp_hash = hash_otp(otp)
 
-        # delete old OTP
-        cur.execute("DELETE FROM otp_verification WHERE email=%s", (email,))
+        session['otp_mobile'] = mobile
 
-        # insert new OTP
+        conn = get_db()
+        cur = conn.cursor()
+
+        cur.execute("DELETE FROM otp_verification WHERE email=%s", (mobile,))
         cur.execute("""
             INSERT INTO otp_verification (email, otp_hash, created_at)
             VALUES (%s, %s, %s)
-        """, (email, otp_hash, datetime.now()))
+        """, (mobile, otp_hash, datetime.now()))
 
         conn.commit()
         conn.close()
 
-        send_email(email, "Your OTP", f"OTP: {otp}")
-        send_sms("+91XXXXXXXXXX", f"Your OTP is {otp}")
+        whatsapp_link = f"https://wa.me/91{mobile}?text=Your OTP is {otp}"
 
-        session['otp_email'] = email
+        # 👉 OTP UI (WhatsApp button + Verify)
+        return f"""
+        <html>
+        <body style="text-align:center; margin-top:50px;">
+            <h3>📲 Get OTP</h3>
 
-        return redirect('/verify_otp')
+            <a href="{whatsapp_link}" target="_blank"
+            style="padding:12px 20px;background:green;color:white;border-radius:8px;text-decoration:none;">
+            👉 Get OTP on WhatsApp
+            </a>
 
+            <br><br>
 
-    # ✅ UI SAME ठेव (NO CHANGE)
+            <form method="POST" action="/verify_otp">
+                <input name="otp" placeholder="Enter OTP" required>
+                <br><br>
+                <button>Verify</button>
+            </form>
+        </body>
+        </html>
+        """
+
+    # 👉 तुझा original DESIGN UI (GET request ला)
     return """
     <html>
     <head>
@@ -480,7 +490,7 @@ def otp_login():
         <h4 class="text-center">📱 OTP Login</h4>
 
         <form method="POST">
-            <input class="form-control mb-3" name="email" placeholder="Enter Email" required>
+            <input class="form-control mb-3" name="mobile" placeholder="Enter Mobile Number" required>
             <button class="btn btn-info w-100">Send OTP</button>
         </form>
 
@@ -495,12 +505,11 @@ def otp_login():
 
 
 
-
 # ---------------- VERIFY OTP ----------------
 @app.route('/verify_otp', methods=['GET','POST'])
 def verify_otp():
 
-    email = session.get('otp_email')
+ mobile = session.get('otp_mobile')
 
     if not email:
         return redirect('/otp_login')
@@ -599,7 +608,7 @@ def verify_otp():
 # ---------------- RESEND OTP ----------------
 @app.route('/resend_otp')
 def resend_otp():
-    email = session.get('otp_email')
+   mobile = session.get('otp_mobile')
 
     if not email:
         return redirect('/otp_login')
