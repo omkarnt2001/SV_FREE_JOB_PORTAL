@@ -25,15 +25,15 @@ app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
 # ---------------- EMAIL FUNCTION ----------------
 def send_email(to_email, subject, message):
     try:
-        sender = "yourgmail@gmail.com"
-        password = "your_app_password"
+        sender = "yourrealemail@gmail.com"
+        password = "16_digit_app_password"
 
         msg = MIMEText(message)
         msg["Subject"] = subject
         msg["From"] = sender
         msg["To"] = to_email
 
-        server = smtplib.SMTP("smtp.gmail.com", 587)
+     server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
         server.starttls()
         server.login(sender, password)
         server.send_message(msg)
@@ -44,18 +44,14 @@ def send_email(to_email, subject, message):
 
 
 # ---------------- SMS FUNCTION ----------------
-# def send_sms(to, message):
-#     account_sid = "YOUR_SID"
-#     auth_token = "YOUR_TOKEN"
-#
-#     client = Client(account_sid, auth_token)
-#
-#     client.messages.create(
-#         body=message,
-#         from_="+1234567890",
-#         to=to
-#     )
+def send_sms(to, message):
+    client = Client("YOUR_SID", "YOUR_TOKEN")
 
+    client.messages.create(
+        body=message,
+        from_="+1234567890",
+        to=to
+    )
 
 
 # ---------------- GENERATE OTP ----------------
@@ -406,7 +402,7 @@ def otp_login():
 
         # ✅ FIX 2: SMS add here
         phone = "+91XXXXXXXXXX"   # DB मधून घेशील पुढे
-        # send_sms(phone, f"Your OTP is {otp}")
+         send_sms(phone, f"Your OTP is {otp}")
 
         session['otp_email'] = email
 
@@ -1121,6 +1117,28 @@ def delete_job(id):
     conn.commit()
     conn.close()
     return redirect('/admin')
+
+
+
+# ---------------- UPDATE STATUS ----------------
+@app.route('/admin/update_status/<int:id>/<status>')
+def update_status(id, status):
+    if 'admin' not in session:
+        return redirect('/admin_login')
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("UPDATE applications SET status=%s WHERE id=%s", (status, id))
+
+    conn.commit()
+    conn.close()
+
+    return redirect('/admin/applications')
+
+
+
+
 
 # 👇 हे add कर
 init_db()
