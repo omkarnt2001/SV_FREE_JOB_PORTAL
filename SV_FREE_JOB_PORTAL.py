@@ -7,8 +7,8 @@ import urllib.parse
 import smtplib
 from email.mime.text import MIMEText
 import random
-from twilio.rest import Client
 from flask import send_from_directory
+# from twilio.rest import Client
 
 otp_store = {}
 
@@ -44,17 +44,17 @@ def send_email(to_email, subject, message):
 
 
 # ---------------- SMS FUNCTION ----------------
-def send_sms(to, message):
-    account_sid = "YOUR_SID"
-    auth_token = "YOUR_TOKEN"
-
-    client = Client(account_sid, auth_token)
-
-    client.messages.create(
-        body=message,
-        from_="+1234567890",   # Twilio number
-        to=to
-    )
+# def send_sms(to, message):
+#     account_sid = "YOUR_SID"
+#     auth_token = "YOUR_TOKEN"
+#
+#     client = Client(account_sid, auth_token)
+#
+#     client.messages.create(
+#         body=message,
+#         from_="+1234567890",
+#         to=to
+#     )
 
 
 
@@ -406,7 +406,7 @@ def otp_login():
 
         # ✅ FIX 2: SMS add here
         phone = "+91XXXXXXXXXX"   # DB मधून घेशील पुढे
-        send_sms(phone, f"Your OTP is {otp}")
+        # send_sms(phone, f"Your OTP is {otp}")
 
         session['otp_email'] = email
 
