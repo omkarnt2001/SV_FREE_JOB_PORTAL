@@ -11,6 +11,11 @@ from flask import send_from_directory
 from twilio.rest import Client
 import hashlib
 from flask import send_from_directory, abort
+from supabase import create_client
+SUPABASE_URL = "postgresql://postgres.dyyucghiykhjjgdpxxzn:Omkar%402026%23DB%24Secure%21@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres"
+SUPABASE_KEY = "DATABASE_URL"
+
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 otp_store = {}
 
@@ -734,29 +739,31 @@ def apply(id):
             filename = secure_filename(file.filename)
             unique_filename = str(datetime.now().timestamp()).replace(".", "") + "_" + filename
 
-            # ✅ FILE SAVE
+            # ✅ UPLOAD TO SUPABASE
             try:
-                os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+                supabase.storage.from_("resumes").upload(
+                    unique_filename,
+                    file.read(),
+                    {"content-type": file.content_type}
+                )
 
-                filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
-                file.save(filepath)
+                # ✅ PUBLIC URL
+                file_url = f"{SUPABASE_URL}/storage/v1/object/public/resumes/{unique_filename}"
 
-                # ✅ DEBUG PRINT
-                print("UPLOAD FOLDER:", app.config["UPLOAD_FOLDER"])
-                print("FILE SAVING PATH:", filepath)
+                print("FILE UPLOADED:", file_url)
 
             except Exception as e:
-                print("FILE SAVE ERROR:", e)
+                print("UPLOAD ERROR:", e)
                 return "❌ File upload failed"
 
-            # ✅ SAVE TO DATABASE
+            # ✅ SAVE TO DATABASE (IMPORTANT CHANGE)
             cur.execute("""
-                INSERT INTO applications (user_email, job_id, resume, status, date)
+                INSERT INTO applications (user_email, job_id, resume_url, status, date)
                 VALUES (%s, %s, %s, %s, %s)
             """, (
                 session['user'],
                 id,
-                unique_filename,
+                file_url,
                 'Pending',
                 str(datetime.now())
             ))
@@ -810,8 +817,6 @@ def apply(id):
 
         except Exception as e:
             return f"<h3 style='color:red;text-align:center;'>Error: {e}</h3>"
-
-
 
 
             
@@ -1162,7 +1167,9 @@ def admin_applications():
             <p>💼 Job: {d[2]}</p>
             <p class="status">Status: {d[4]}</p>
 
-            <a href="/download/{d[3]}" class="btn btn-primary btn-sm">⬇ Download Resume</a>
+            <a href="{d[3]}?download=1" class="btn btn-success btn-sm">
+            ⬇ Download Resume
+            </a>
             <a href="/admin/update_status/{d[0]}/Approved" class="btn btn-success btn-sm">Approve</a>
             <a href="/admin/update_status/{d[0]}/Rejected" class="btn btn-danger btn-sm">Reject</a>
         </div>
