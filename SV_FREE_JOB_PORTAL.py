@@ -9,19 +9,9 @@ from email.mime.text import MIMEText
 import random
 from twilio.rest import Client
 
-otp = generate_otp()
+otp_store = {}
 
-otp_store[email] = {
-    "otp": otp,
-    "time": datetime.now()
-}
 
-# EMAIL
-send_email(email, "SV Job Portal OTP", f"Your OTP is: {otp}")
-
-# SMS
-phone = "+91XXXXXXXXXX"   # future DB मधून घे
-send_sms(phone, f"Your OTP is {otp}")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "mysecret123")
@@ -403,14 +393,25 @@ def otp_login():
             return "❌ Email not registered"
 
         otp = generate_otp()
-        otp_store[email] = otp
 
+        # ✅ FIX 1: proper store (with time)
+        otp_store[email] = {
+            "otp": otp,
+            "time": datetime.now()
+        }
+
+        # ✅ EMAIL
         send_email(email, "SV Job Portal OTP", f"Your OTP is: {otp}")
+
+        # ✅ FIX 2: SMS add here
+        phone = "+91XXXXXXXXXX"   # DB मधून घेशील पुढे
+        send_sms(phone, f"Your OTP is {otp}")
 
         session['otp_email'] = email
 
         return redirect('/verify_otp')
 
+    # ✅ UI SAME ठेव (NO CHANGE)
     return """
     <html>
     <head>
@@ -466,23 +467,31 @@ def verify_otp():
         otp = request.form['otp']
         email = session.get('otp_email')
 
-       if email in otp_store:
-    stored = otp_store[email]
+        if email in otp_store:
+            stored = otp_store[email]
 
-    if stored["otp"] == otp:
+            if stored["otp"] == otp:
 
-        # ⏱ 5 min expiry
-        if (datetime.now() - stored["time"]).seconds > 300:
-            return "❌ OTP Expired"
+                # ⏱ 5 min expiry
+                if (datetime.now() - stored["time"]).seconds > 300:
+                    return "❌ OTP Expired"
 
-        session['user'] = email
-        otp_store.pop(email)
+                session['user'] = email
+                otp_store.pop(email)
 
-        return redirect('/')
-    else:
-        return "❌ Wrong OTP"
-    else:
-    return "❌ OTP not found"
+                return redirect('/')
+            else:
+                return "❌ Wrong OTP"
+        else:
+            return "❌ OTP not found"
+
+    return """
+    <h3>Enter OTP</h3>
+    <form method="POST">
+        <input name="otp" placeholder="Enter OTP">
+        <button>Verify</button>
+    </form>
+    """
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
