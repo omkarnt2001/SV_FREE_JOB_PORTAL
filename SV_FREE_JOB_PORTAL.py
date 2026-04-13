@@ -1167,9 +1167,10 @@ def admin_applications():
             <p>💼 Job: {d[2]}</p>
             <p class="status">Status: {d[4]}</p>
 
-            <a href="{d[3]}?download=1" class="btn btn-success btn-sm">
-            ⬇ Download Resume
+            <a href="{d[3]}" download class="btn btn-success btn-sm">
+                ⬇ Download Resume
             </a>
+
             <a href="/admin/update_status/{d[0]}/Approved" class="btn btn-success btn-sm">Approve</a>
             <a href="/admin/update_status/{d[0]}/Rejected" class="btn btn-danger btn-sm">Reject</a>
         </div>
@@ -1178,28 +1179,6 @@ def admin_applications():
     html += "</body></html>"
     return html
 
-
-
-# ---------------- DOWNLOAD RESUME ----------------
-@app.route('/download/<path:filename>')
-def download_file(filename):
-
-    if 'admin' not in session:
-        return "❌ Not allowed"
-
-    filename = secure_filename(filename)
-
-    folder = app.config["UPLOAD_FOLDER"]
-    file_path = os.path.join(folder, filename)
-
-    # ✅ DEBUG PRINT
-    print("DOWNLOAD REQUEST FILE:", filename)
-    print("FULL PATH:", file_path)
-
-    if not os.path.exists(file_path):
-        return f"❌ File not found: {file_path}"
-
-    return send_from_directory(folder, filename, as_attachment=True)
 
 
 
