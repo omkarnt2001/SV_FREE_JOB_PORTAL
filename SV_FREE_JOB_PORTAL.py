@@ -1116,45 +1116,31 @@ def admin_applications():
     if 'admin' not in session:
         return redirect('/admin_login')
 
-    conn = get_db()
-    cur = conn.cursor()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
 
-    cur.execute("""
-        SELECT applications.id, applications.user_email, jobs.title, applications.resume, applications.status
-        FROM applications
-        JOIN jobs ON jobs.id = applications.job_id
-        ORDER BY applications.id DESC
-    """)
+        cur.execute("""
+            SELECT applications.id, applications.user_email, jobs.title, applications.resume_url, applications.status
+            FROM applications
+            JOIN jobs ON jobs.id = applications.job_id
+            ORDER BY applications.id DESC
+        """)
 
-    data = cur.fetchall()
-    conn.close()
+        data = cur.fetchall()
+        conn.close()
+
+    except Exception as e:
+        return f"<h3 style='color:red;'>DB ERROR: {e}</h3>"
 
     html = """
     <html>
     <head>
     <title>Applications</title>
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-    body {
-        background: #0f2027;
-        color: white;
-        padding:20px;
-    }
-
-    .card {
-        border-radius: 12px;
-        margin-bottom: 15px;
-    }
-
-    .status {
-        font-weight: bold;
-    }
-    </style>
     </head>
 
-    <body>
+    <body style="background:#0f2027;color:white;padding:20px;">
 
     <h2>📄 All Applications</h2>
     <a href="/admin" class="btn btn-light mb-3">⬅ Back</a>
@@ -1163,18 +1149,19 @@ def admin_applications():
     for d in data:
 
         # ✅ SAFE DOWNLOAD BUTTON
-        if d[3]:
+        if d[3] and d[3] != "None":
             download_btn = f'<a href="{d[3]}" target="_blank" class="btn btn-success btn-sm">⬇ Download Resume</a>'
         else:
             download_btn = '<span style="color:red;">❌ No Resume</span>'
 
         html += f"""
-        <div class="card p-3 text-dark">
+        <div class="card p-3 text-dark mb-3">
             <h5>👤 {d[1]}</h5>
             <p>💼 Job: {d[2]}</p>
-            <p class="status">Status: {d[4]}</p>
+            <p>Status: <b>{d[4]}</b></p>
 
             {download_btn}
+            <br><br>
 
             <a href="/admin/update_status/{d[0]}/Approved" class="btn btn-success btn-sm">Approve</a>
             <a href="/admin/update_status/{d[0]}/Rejected" class="btn btn-danger btn-sm">Reject</a>
@@ -1183,7 +1170,6 @@ def admin_applications():
 
     html += "</body></html>"
     return html
-
 
 
 
