@@ -8,6 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 import random
 from twilio.rest import Client
+from flask import send_from_directory
 
 otp_store = {}
 
@@ -460,12 +461,19 @@ def otp_login():
 
 
 
+
 # ---------------- VERIFY OTP ----------------
 @app.route('/verify_otp', methods=['GET','POST'])
 def verify_otp():
+
+    email = session.get('otp_email')
+
+    # 🔐 email नसल्यास परत login ला
+    if not email:
+        return redirect('/otp_login')
+
     if request.method == 'POST':
         otp = request.form['otp']
-        email = session.get('otp_email')
 
         if email in otp_store:
             stored = otp_store[email]
@@ -473,7 +481,7 @@ def verify_otp():
             if stored["otp"] == otp:
 
                 # ⏱ 5 min expiry
-                if (datetime.now() - stored["time"]).seconds > 300:
+                if (datetime.now() - stored["time"]).total_seconds() > 300:
                     return "❌ OTP Expired"
 
                 session['user'] = email
@@ -486,12 +494,9 @@ def verify_otp():
             return "❌ OTP not found"
 
     return """
-    <h3>Enter OTP</h3>
-    <form method="POST">
-        <input name="otp" placeholder="Enter OTP">
-        <button>Verify</button>
-    </form>
-    """
+    <html>
+    <head>
+    <title>Verify OTP</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
@@ -524,15 +529,14 @@ def verify_otp():
             <input class="form-control mb-3" name="otp" placeholder="Enter OTP" required>
             <button class="btn btn-success w-100">Verify</button>
         </form>
-        <br>
 
+        <br>
         <a href="/resend_otp" class="btn btn-warning w-100">🔁 Resend OTP</a>
     </div>
 
     </body>
     </html>
     """
-
 
 
 # ---------------- RESEND OTP ----------------
