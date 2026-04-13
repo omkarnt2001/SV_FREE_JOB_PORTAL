@@ -12,8 +12,8 @@ from twilio.rest import Client
 import hashlib
 from flask import send_from_directory, abort
 from supabase import create_client
-SUPABASE_URL = "postgresql://postgres.dyyucghiykhjjgdpxxzn:Omkar%402026%23DB%24Secure%21@aws-1-ap-southeast-2.pooler.supabase.com:6543/postgres"
-SUPABASE_KEY = "DATABASE_URL"
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 
