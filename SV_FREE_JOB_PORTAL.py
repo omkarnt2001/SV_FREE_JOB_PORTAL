@@ -10,6 +10,7 @@ import random
 from flask import send_from_directory
 from twilio.rest import Client
 import hashlib
+from flask import send_from_directory, abort
 
 otp_store = {}
 
@@ -509,9 +510,9 @@ def otp_login():
 @app.route('/verify_otp', methods=['GET','POST'])
 def verify_otp():
 
- mobile = session.get('otp_mobile')
+    mobile = session.get('otp_mobile')
 
-    if not email:
+    if not mobile:
         return redirect('/otp_login')
 
     if request.method == 'POST':
@@ -524,7 +525,7 @@ def verify_otp():
             SELECT otp_hash, created_at, attempts 
             FROM otp_verification 
             WHERE email=%s
-        """, (email,))
+        """, (mobile,))
 
         data = cur.fetchone()
 
@@ -540,9 +541,9 @@ def verify_otp():
             return "❌ OTP expired"
 
         if hash_otp(user_otp) == otp_hash:
-            session['user'] = email
+            session['user'] = mobile
 
-            cur.execute("DELETE FROM otp_verification WHERE email=%s", (email,))
+            cur.execute("DELETE FROM otp_verification WHERE email=%s", (mobile,))
             conn.commit()
             conn.close()
 
@@ -552,54 +553,30 @@ def verify_otp():
                 UPDATE otp_verification 
                 SET attempts = attempts + 1 
                 WHERE email=%s
-            """, (email,))
+            """, (mobile,))
             conn.commit()
             conn.close()
 
             return "❌ Wrong OTP"
 
-   
     return """
     <html>
     <head>
     <title>Verify OTP</title>
-
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-    <style>
-    body {
-        background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
-        height:100vh;
-        display:flex;
-        justify-content:center;
-        align-items:center;
-        color:white;
-    }
-
-    .box {
-        width:350px;
-        background: rgba(255,255,255,0.1);
-        padding:30px;
-        border-radius:15px;
-        backdrop-filter: blur(10px);
-    }
-    </style>
     </head>
 
-    <body>
-
-    <div class="box">
-        <h4 class="text-center">🔐 Enter OTP</h4>
+    <body style="background:#0f2027;color:white;text-align:center;margin-top:100px;">
+        <h3>🔐 Enter OTP</h3>
 
         <form method="POST">
-            <input class="form-control mb-3" name="otp" placeholder="Enter OTP" required>
-            <button class="btn btn-success w-100">Verify</button>
+            <input name="otp" placeholder="Enter OTP" required>
+            <br><br>
+            <button>Verify</button>
         </form>
 
         <br>
-        <a href="/resend_otp" class="btn btn-warning w-100">🔁 Resend OTP</a>
-    </div>
-
+        <a href="/resend_otp">🔁 Resend OTP</a>
     </body>
     </html>
     """
@@ -608,9 +585,10 @@ def verify_otp():
 # ---------------- RESEND OTP ----------------
 @app.route('/resend_otp')
 def resend_otp():
-   mobile = session.get('otp_mobile')
 
-    if not email:
+    mobile = session.get('otp_mobile')
+
+    if not mobile:
         return redirect('/otp_login')
 
     conn = get_db()
@@ -619,27 +597,106 @@ def resend_otp():
     otp = generate_otp()
     otp_hash = hash_otp(otp)
 
-    # delete old OTP
-    cur.execute("DELETE FROM otp_verification WHERE email=%s", (email,))
+    cur.execute("DELETE FROM otp_verification WHERE email=%s", (mobile,))
 
-    # insert new OTP
     cur.execute("""
         INSERT INTO otp_verification (email, otp_hash, created_at)
         VALUES (%s, %s, %s)
-    """, (email, otp_hash, datetime.now()))
+    """, (mobile, otp_hash, datetime.now()))
 
     conn.commit()
     conn.close()
 
-    send_email(email, "Resend OTP", f"Your OTP is: {otp}")
+    whatsapp_link = f"https://wa.me/91{mobile}?text=Your OTP is {otp}"
 
-    return """
-    <h3 style='text-align:center;'>✅ OTP Sent Again</h3>
-    <div style='text-align:center;'>
-        <a href='/verify_otp'>⬅ Back</a>
-    </div>
+    return f"""
+    <html>
+    <head>
+        <title>OTP Sent</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+        <style>
+            body {{
+                margin:0;
+                height:100vh;
+                display:flex;
+                justify-content:center;
+                align-items:center;
+                background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+                font-family: Arial;
+            }}
+
+            .card-box {{
+                width: 380px;
+                background: rgba(255,255,255,0.1);
+                backdrop-filter: blur(15px);
+                border-radius: 18px;
+                padding: 30px;
+                text-align:center;
+                color:white;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+                animation: fadeIn 0.6s ease-in-out;
+            }}
+
+            @keyframes fadeIn {{
+                from {{opacity:0; transform: translateY(20px);}}
+                to {{opacity:1; transform: translateY(0);}}
+            }}
+
+            .icon {{
+                font-size: 50px;
+                margin-bottom: 10px;
+            }}
+
+            .btn-wa {{
+                background:#25D366;
+                color:white;
+                padding:10px;
+                border-radius:30px;
+                display:block;
+                text-decoration:none;
+                margin-top:15px;
+                font-weight:bold;
+                transition:0.3s;
+            }}
+
+            .btn-wa:hover {{
+                transform: scale(1.05);
+                color:white;
+            }}
+
+            .btn-back {{
+                margin-top:10px;
+                display:block;
+                color:#fff;
+                text-decoration:none;
+                opacity:0.8;
+            }}
+
+            .btn-back:hover {{
+                opacity:1;
+            }}
+        </style>
+    </head>
+
+    <body>
+
+        <div class="card-box">
+            <div class="icon">📲</div>
+
+            <h3>OTP Sent Successfully</h3>
+            <p>Your OTP has been generated again</p>
+
+            <a class="btn-wa" href="{whatsapp_link}" target="_blank">
+                👉 Open WhatsApp & Get OTP
+            </a>
+
+            <a class="btn-back" href="/verify_otp">⬅ Go to Verify Page</a>
+        </div>
+
+    </body>
+    </html>
     """
-
 
 
 
@@ -1103,11 +1160,23 @@ def admin_applications():
 # ---------------- DOWNLOAD RESUME ----------------
 @app.route('/download/<filename>')
 def download_file(filename):
+
     if 'admin' not in session:
         return "❌ Not allowed"
 
-    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
+    try:
+        folder = os.path.join(os.getcwd(), app.config["UPLOAD_FOLDER"])
 
+        file_path = os.path.join(folder, filename)
+
+        # 👉 file exists check (IMPORTANT)
+        if not os.path.exists(file_path):
+            return "❌ File not found on server"
+
+        return send_from_directory(folder, filename, as_attachment=True)
+
+    except Exception as e:
+        return f"❌ Download Error: {str(e)}"
 
 
 
