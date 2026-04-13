@@ -730,20 +730,26 @@ def apply(id):
             if not file or file.filename == '':
                 return "<h3 style='color:red;text-align:center;'>❌ Please upload resume</h3>"
 
-            # ✅ UNIQUE FILE NAME (NO ERROR EVER)
+            # ✅ UNIQUE FILE NAME
             filename = secure_filename(file.filename)
             unique_filename = str(datetime.now().timestamp()).replace(".", "") + "_" + filename
 
-            # ❗ IMPORTANT: SAVE ONLY IF LOCAL (optional)
+            # ✅ FILE SAVE
             try:
                 os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
+
                 filepath = os.path.join(app.config["UPLOAD_FOLDER"], unique_filename)
                 file.save(filepath)
-            except:
-                # 👉 cloud मध्ये save fail झाला तरी app crash होणार नाही
-                unique_filename = "uploaded_" + unique_filename
 
-            # ✅ MULTIPLE APPLY ALLOWED (NO CHECK)
+                # ✅ DEBUG PRINT
+                print("UPLOAD FOLDER:", app.config["UPLOAD_FOLDER"])
+                print("FILE SAVING PATH:", filepath)
+
+            except Exception as e:
+                print("FILE SAVE ERROR:", e)
+                return "❌ File upload failed"
+
+            # ✅ SAVE TO DATABASE
             cur.execute("""
                 INSERT INTO applications (user_email, job_id, resume, status, date)
                 VALUES (%s, %s, %s, %s, %s)
@@ -804,6 +810,11 @@ def apply(id):
 
         except Exception as e:
             return f"<h3 style='color:red;text-align:center;'>Error: {e}</h3>"
+
+
+
+
+            
 
     # ---------------- GET UI ----------------
     return """
@@ -1163,26 +1174,25 @@ def admin_applications():
 
 
 # ---------------- DOWNLOAD RESUME ----------------
-@app.route('/download/<filename>')
+@app.route('/download/<path:filename>')
 def download_file(filename):
 
     if 'admin' not in session:
         return "❌ Not allowed"
 
-    try:
-        folder = app.config["UPLOAD_FOLDER"]
-        file_path = os.path.join(folder, filename)
+    filename = secure_filename(filename)
 
-        # security fix (VERY IMPORTANT)
-        filename = secure_filename(filename)
+    folder = app.config["UPLOAD_FOLDER"]
+    file_path = os.path.join(folder, filename)
 
-        if not os.path.exists(file_path):
-            return "❌ File not found on server"
+    # ✅ DEBUG PRINT
+    print("DOWNLOAD REQUEST FILE:", filename)
+    print("FULL PATH:", file_path)
 
-        return send_from_directory(folder, filename, as_attachment=True)
+    if not os.path.exists(file_path):
+        return f"❌ File not found: {file_path}"
 
-    except Exception as e:
-        return f"❌ Download Error: {str(e)}"
+    return send_from_directory(folder, filename, as_attachment=True)
 
 
 
