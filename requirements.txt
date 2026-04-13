@@ -4,3 +4,4 @@ gunicorn
 flask-mail
 werkzeug
 twilio
+supabase
