@@ -1161,15 +1161,20 @@ def admin_applications():
     """
 
     for d in data:
+
+        # ✅ SAFE DOWNLOAD BUTTON
+        if d[3]:
+            download_btn = f'<a href="{d[3]}" target="_blank" class="btn btn-success btn-sm">⬇ Download Resume</a>'
+        else:
+            download_btn = '<span style="color:red;">❌ No Resume</span>'
+
         html += f"""
         <div class="card p-3 text-dark">
             <h5>👤 {d[1]}</h5>
             <p>💼 Job: {d[2]}</p>
             <p class="status">Status: {d[4]}</p>
 
-            <a href="{d[3]}" download class="btn btn-success btn-sm">
-                ⬇ Download Resume
-            </a>
+            {download_btn}
 
             <a href="/admin/update_status/{d[0]}/Approved" class="btn btn-success btn-sm">Approve</a>
             <a href="/admin/update_status/{d[0]}/Rejected" class="btn btn-danger btn-sm">Reject</a>
