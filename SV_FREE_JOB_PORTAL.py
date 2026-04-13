@@ -8,7 +8,7 @@ import smtplib
 from email.mime.text import MIMEText
 import random
 from flask import send_from_directory
-# from twilio.rest import Client
+from twilio.rest import Client
 
 otp_store = {}
 
@@ -33,7 +33,7 @@ def send_email(to_email, subject, message):
         msg["From"] = sender
         msg["To"] = to_email
 
-     server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
+        server = smtplib.SMTP("smtp.gmail.com", 587, timeout=10)
         server.starttls()
         server.login(sender, password)
         server.send_message(msg)
@@ -400,9 +400,9 @@ def otp_login():
         # ✅ EMAIL
         send_email(email, "SV Job Portal OTP", f"Your OTP is: {otp}")
 
-        # ✅ FIX 2: SMS add here
-        phone = "+91XXXXXXXXXX"   # DB मधून घेशील पुढे
-         send_sms(phone, f"Your OTP is {otp}")
+        # ✅ FIX 2: SMS add here (INDENT FIXED)
+        phone = "+91XXXXXXXXXX"
+        send_sms(phone, f"Your OTP is {otp}")
 
         session['otp_email'] = email
 
