@@ -9,6 +9,7 @@ from email.mime.text import MIMEText
 import random
 from flask import send_from_directory
 from twilio.rest import Client
+import hashlib
 
 otp_store = {}
 
@@ -58,53 +59,86 @@ def send_sms(to, message):
 def generate_otp():
     return str(random.randint(100000, 999999))
 
+def hash_otp(otp):
+    return hashlib.sha256(otp.encode()).hexdigest()
+
 
 
 
 # ---------------- DATABASE ----------------
 def get_db():
     try:
-        return psycopg2.connect(os.environ.get("DATABASE_URL"), sslmode='require')
+        db_url = os.environ.get("DATABASE_URL")
+
+        if not db_url:
+            raise Exception("❌ DATABASE_URL not set. Set it in environment variables.")
+
+        return psycopg2.connect(db_url, sslmode='require')
+
     except Exception as e:
         print("DB ERROR:", e)
         raise e
 
+
 def init_db():
-    conn = get_db()
-    cur = conn.cursor()
+    try:
+        conn = get_db()
+        cur = conn.cursor()
 
-    cur.execute('''CREATE TABLE IF NOT EXISTS users (
-        id SERIAL PRIMARY KEY,
-        name TEXT,
-        email TEXT,
-        password TEXT
-    )''')
+        # ✅ USERS TABLE
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id SERIAL PRIMARY KEY,
+            name TEXT,
+            email TEXT UNIQUE,
+            password TEXT
+        )
+        ''')
 
-    cur.execute('''CREATE TABLE IF NOT EXISTS jobs (
-        id SERIAL PRIMARY KEY,
-        title TEXT,
-        company TEXT,
-        location TEXT,
-        salary TEXT,
-        hr_name TEXT,
-        hr_contact TEXT,
-        description TEXT
-    )''')
+        # ✅ OTP TABLE
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS otp_verification (
+            id SERIAL PRIMARY KEY,
+            email TEXT,
+            otp_hash TEXT,
+            created_at TIMESTAMP,
+            attempts INTEGER DEFAULT 0
+        )
+        ''')
 
-    cur.execute('''CREATE TABLE IF NOT EXISTS applications (
-        id SERIAL PRIMARY KEY,
-        user_email TEXT,
-        job_id INTEGER,
-        resume TEXT,
-        status TEXT,
-        date TEXT
-    )''')
+        # ✅ JOBS TABLE
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS jobs (
+            id SERIAL PRIMARY KEY,
+            title TEXT,
+            company TEXT,
+            location TEXT,
+            salary TEXT,
+            hr_name TEXT,
+            hr_contact TEXT,
+            description TEXT
+        )
+        ''')
 
-    conn.commit()
-    conn.close()
+        # ✅ APPLICATIONS TABLE
+        cur.execute('''
+        CREATE TABLE IF NOT EXISTS applications (
+            id SERIAL PRIMARY KEY,
+            user_email TEXT,
+            job_id INTEGER,
+            resume TEXT,
+            status TEXT,
+            date TEXT
+        )
+        ''')
 
+        conn.commit()
+        conn.close()
 
+        print("✅ Database initialized successfully")
 
+    except Exception as e:
+        print("❌ DB INIT ERROR:", e)
 
 # ---------------- HOME ----------------
 @app.route('/')
@@ -382,31 +416,35 @@ def otp_login():
 
         conn = get_db()
         cur = conn.cursor()
+
         cur.execute("SELECT * FROM users WHERE email=%s", (email,))
         user = cur.fetchone()
-        conn.close()
 
         if not user:
             return "❌ Email not registered"
 
         otp = generate_otp()
+        otp_hash = hash_otp(otp)
 
-        # ✅ FIX 1: proper store (with time)
-        otp_store[email] = {
-            "otp": otp,
-            "time": datetime.now()
-        }
+        # delete old OTP
+        cur.execute("DELETE FROM otp_verification WHERE email=%s", (email,))
 
-        # ✅ EMAIL
-        send_email(email, "SV Job Portal OTP", f"Your OTP is: {otp}")
+        # insert new OTP
+        cur.execute("""
+            INSERT INTO otp_verification (email, otp_hash, created_at)
+            VALUES (%s, %s, %s)
+        """, (email, otp_hash, datetime.now()))
 
-        # ✅ FIX 2: SMS add here (INDENT FIXED)
-        phone = "+91XXXXXXXXXX"
-        send_sms(phone, f"Your OTP is {otp}")
+        conn.commit()
+        conn.close()
+
+        send_email(email, "Your OTP", f"OTP: {otp}")
+        send_sms("+91XXXXXXXXXX", f"Your OTP is {otp}")
 
         session['otp_email'] = email
 
         return redirect('/verify_otp')
+
 
     # ✅ UI SAME ठेव (NO CHANGE)
     return """
@@ -464,31 +502,54 @@ def verify_otp():
 
     email = session.get('otp_email')
 
-    # 🔐 email नसल्यास परत login ला
     if not email:
         return redirect('/otp_login')
 
     if request.method == 'POST':
-        otp = request.form['otp']
+        user_otp = request.form['otp']
 
-        if email in otp_store:
-            stored = otp_store[email]
+        conn = get_db()
+        cur = conn.cursor()
 
-            if stored["otp"] == otp:
+        cur.execute("""
+            SELECT otp_hash, created_at, attempts 
+            FROM otp_verification 
+            WHERE email=%s
+        """, (email,))
 
-                # ⏱ 5 min expiry
-                if (datetime.now() - stored["time"]).total_seconds() > 300:
-                    return "❌ OTP Expired"
+        data = cur.fetchone()
 
-                session['user'] = email
-                otp_store.pop(email)
-
-                return redirect('/')
-            else:
-                return "❌ Wrong OTP"
-        else:
+        if not data:
             return "❌ OTP not found"
 
+        otp_hash, created_at, attempts = data
+
+        if attempts >= 5:
+            return "❌ Too many attempts"
+
+        if (datetime.now() - created_at).total_seconds() > 300:
+            return "❌ OTP expired"
+
+        if hash_otp(user_otp) == otp_hash:
+            session['user'] = email
+
+            cur.execute("DELETE FROM otp_verification WHERE email=%s", (email,))
+            conn.commit()
+            conn.close()
+
+            return redirect('/')
+        else:
+            cur.execute("""
+                UPDATE otp_verification 
+                SET attempts = attempts + 1 
+                WHERE email=%s
+            """, (email,))
+            conn.commit()
+            conn.close()
+
+            return "❌ Wrong OTP"
+
+   
     return """
     <html>
     <head>
@@ -543,14 +604,25 @@ def resend_otp():
     if not email:
         return redirect('/otp_login')
 
+    conn = get_db()
+    cur = conn.cursor()
+
     otp = generate_otp()
+    otp_hash = hash_otp(otp)
 
-    otp_store[email] = {
-        "otp": otp,
-        "time": datetime.now()
-    }
+    # delete old OTP
+    cur.execute("DELETE FROM otp_verification WHERE email=%s", (email,))
 
-    send_email(email, "Resend OTP", f"Your new OTP is: {otp}")
+    # insert new OTP
+    cur.execute("""
+        INSERT INTO otp_verification (email, otp_hash, created_at)
+        VALUES (%s, %s, %s)
+    """, (email, otp_hash, datetime.now()))
+
+    conn.commit()
+    conn.close()
+
+    send_email(email, "Resend OTP", f"Your OTP is: {otp}")
 
     return """
     <h3 style='text-align:center;'>✅ OTP Sent Again</h3>
@@ -823,7 +895,8 @@ def admin_login():
         user = request.form.get('user', '').strip().lower()
         password = request.form.get('pass', '').strip()
 
-        if user == "admin" and password == "1234":
+        # ✅ CORRECT INDENTATION
+        if user == os.environ.get("ADMIN_USER") and password == os.environ.get("ADMIN_PASS"):
             session['admin'] = True
             return redirect('/admin')
 
