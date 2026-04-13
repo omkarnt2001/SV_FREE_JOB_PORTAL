@@ -6,6 +6,22 @@ from datetime import datetime
 import urllib.parse
 import smtplib
 from email.mime.text import MIMEText
+import random
+from twilio.rest import Client
+
+otp = generate_otp()
+
+otp_store[email] = {
+    "otp": otp,
+    "time": datetime.now()
+}
+
+# EMAIL
+send_email(email, "SV Job Portal OTP", f"Your OTP is: {otp}")
+
+# SMS
+phone = "+91XXXXXXXXXX"   # future DB मधून घे
+send_sms(phone, f"Your OTP is {otp}")
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "mysecret123")
@@ -34,6 +50,29 @@ def send_email(to_email, subject, message):
 
     except Exception as e:
         print("Email error:", e)
+
+
+# ---------------- SMS FUNCTION ----------------
+def send_sms(to, message):
+    account_sid = "YOUR_SID"
+    auth_token = "YOUR_TOKEN"
+
+    client = Client(account_sid, auth_token)
+
+    client.messages.create(
+        body=message,
+        from_="+1234567890",   # Twilio number
+        to=to
+    )
+
+
+
+# ---------------- GENERATE OTP ----------------
+def generate_otp():
+    return str(random.randint(100000, 999999))
+
+
+
 
 # ---------------- DATABASE ----------------
 def get_db():
@@ -335,12 +374,189 @@ def login():
         </form>
 
         <br>
+        <a href="/otp_login" class="btn btn-warning w-100">📱 Login with OTP</a>
+
+        <br>
         <a href="/signup">Create new account</a>
     </div>
 
     </body>
     </html>
     '''
+
+
+
+
+# ---------------- OTP LOGIN ----------------
+@app.route('/otp_login', methods=['GET','POST'])
+def otp_login():
+    if request.method == 'POST':
+        email = request.form['email']
+
+        conn = get_db()
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM users WHERE email=%s", (email,))
+        user = cur.fetchone()
+        conn.close()
+
+        if not user:
+            return "❌ Email not registered"
+
+        otp = generate_otp()
+        otp_store[email] = otp
+
+        send_email(email, "SV Job Portal OTP", f"Your OTP is: {otp}")
+
+        session['otp_email'] = email
+
+        return redirect('/verify_otp')
+
+    return """
+    <html>
+    <head>
+    <title>OTP Login</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: linear-gradient(135deg,#141e30,#243b55);
+        height:100vh;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        color:white;
+    }
+
+    .box {
+        width:350px;
+        background: rgba(255,255,255,0.1);
+        padding:30px;
+        border-radius:15px;
+        backdrop-filter: blur(10px);
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <div class="box">
+        <h4 class="text-center">📱 OTP Login</h4>
+
+        <form method="POST">
+            <input class="form-control mb-3" name="email" placeholder="Enter Email" required>
+            <button class="btn btn-info w-100">Send OTP</button>
+        </form>
+
+        <br>
+        <a href="/login" class="text-light">⬅ Back to Login</a>
+    </div>
+
+    </body>
+    </html>
+    """
+
+
+
+
+# ---------------- VERIFY OTP ----------------
+@app.route('/verify_otp', methods=['GET','POST'])
+def verify_otp():
+    if request.method == 'POST':
+        otp = request.form['otp']
+        email = session.get('otp_email')
+
+       if email in otp_store:
+    stored = otp_store[email]
+
+    if stored["otp"] == otp:
+
+        # ⏱ 5 min expiry
+        if (datetime.now() - stored["time"]).seconds > 300:
+            return "❌ OTP Expired"
+
+        session['user'] = email
+        otp_store.pop(email)
+
+        return redirect('/')
+    else:
+        return "❌ Wrong OTP"
+    else:
+    return "❌ OTP not found"
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+        height:100vh;
+        display:flex;
+        justify-content:center;
+        align-items:center;
+        color:white;
+    }
+
+    .box {
+        width:350px;
+        background: rgba(255,255,255,0.1);
+        padding:30px;
+        border-radius:15px;
+        backdrop-filter: blur(10px);
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <div class="box">
+        <h4 class="text-center">🔐 Enter OTP</h4>
+
+        <form method="POST">
+            <input class="form-control mb-3" name="otp" placeholder="Enter OTP" required>
+            <button class="btn btn-success w-100">Verify</button>
+        </form>
+        <br>
+
+        <a href="/resend_otp" class="btn btn-warning w-100">🔁 Resend OTP</a>
+    </div>
+
+    </body>
+    </html>
+    """
+
+
+
+# ---------------- RESEND OTP ----------------
+@app.route('/resend_otp')
+def resend_otp():
+    email = session.get('otp_email')
+
+    if not email:
+        return redirect('/otp_login')
+
+    otp = generate_otp()
+
+    otp_store[email] = {
+        "otp": otp,
+        "time": datetime.now()
+    }
+
+    send_email(email, "Resend OTP", f"Your new OTP is: {otp}")
+
+    return """
+    <h3 style='text-align:center;'>✅ OTP Sent Again</h3>
+    <div style='text-align:center;'>
+        <a href='/verify_otp'>⬅ Back</a>
+    </div>
+    """
+
+
+
+
+
+
+
+    
 
 
 
@@ -707,6 +923,7 @@ def admin():
 
     <div class="container">
         <a href="/admin/post_job" class="btn btn-success mb-3">+ Post Job</a>
+        <a href="/admin/applications" class="btn btn-info mb-3">📄 View Applications</a>
     """
 
     for j in jobs:
@@ -720,6 +937,89 @@ def admin():
 
     html += "</div></body></html>"
     return html
+
+
+
+
+# ---------------- ADMIN APPLICATIONS ----------------
+@app.route('/admin/applications')
+def admin_applications():
+    if 'admin' not in session:
+        return redirect('/admin_login')
+
+    conn = get_db()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT applications.id, applications.user_email, jobs.title, applications.resume, applications.status
+        FROM applications
+        JOIN jobs ON jobs.id = applications.job_id
+        ORDER BY applications.id DESC
+    """)
+
+    data = cur.fetchall()
+    conn.close()
+
+    html = """
+    <html>
+    <head>
+    <title>Applications</title>
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <style>
+    body {
+        background: #0f2027;
+        color: white;
+        padding:20px;
+    }
+
+    .card {
+        border-radius: 12px;
+        margin-bottom: 15px;
+    }
+
+    .status {
+        font-weight: bold;
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <h2>📄 All Applications</h2>
+    <a href="/admin" class="btn btn-light mb-3">⬅ Back</a>
+    """
+
+    for d in data:
+        html += f"""
+        <div class="card p-3 text-dark">
+            <h5>👤 {d[1]}</h5>
+            <p>💼 Job: {d[2]}</p>
+            <p class="status">Status: {d[4]}</p>
+
+            <a href="/download/{d[3]}" class="btn btn-primary btn-sm">⬇ Download Resume</a>
+            <a href="/admin/update_status/{d[0]}/Approved" class="btn btn-success btn-sm">Approve</a>
+            <a href="/admin/update_status/{d[0]}/Rejected" class="btn btn-danger btn-sm">Reject</a>
+        </div>
+        """
+
+    html += "</body></html>"
+    return html
+
+
+
+# ---------------- DOWNLOAD RESUME ----------------
+@app.route('/download/<filename>')
+def download_file(filename):
+    if 'admin' not in session:
+        return "❌ Not allowed"
+
+    return send_from_directory(app.config["UPLOAD_FOLDER"], filename, as_attachment=True)
+
+
+
+
 
 # ---------------- POST JOB ----------------
 @app.route('/admin/post_job', methods=['GET','POST'])
@@ -796,6 +1096,9 @@ def post_job():
     </body>
     </html>
     '''
+
+
+
 # ---------------- DELETE ----------------
 @app.route('/admin/delete/<int:id>')
 def delete_job(id):
