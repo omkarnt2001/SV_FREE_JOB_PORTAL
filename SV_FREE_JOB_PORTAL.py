@@ -19,8 +19,13 @@ otp_store = {}
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "mysecret123")
 
-UPLOAD_FOLDER = "uploads"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, "uploads")
+
 app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+
+# folder create करणे MUST
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 
 
@@ -1165,11 +1170,12 @@ def download_file(filename):
         return "❌ Not allowed"
 
     try:
-        folder = os.path.join(os.getcwd(), app.config["UPLOAD_FOLDER"])
-
+        folder = app.config["UPLOAD_FOLDER"]
         file_path = os.path.join(folder, filename)
 
-        # 👉 file exists check (IMPORTANT)
+        # security fix (VERY IMPORTANT)
+        filename = secure_filename(filename)
+
         if not os.path.exists(file_path):
             return "❌ File not found on server"
 
@@ -1177,7 +1183,6 @@ def download_file(filename):
 
     except Exception as e:
         return f"❌ Download Error: {str(e)}"
-
 
 
 
